@@ -1,0 +1,19 @@
+# Binaries
+claude-channels
+*.exe
+
+# Config with secrets
+env
+config.yaml
+!config.example.yaml
+
+# Sessions state
+sessions.json
+
+# Go
+vendor/
+
+# Temp
+/tmp/
+*.ogg
+*.wav

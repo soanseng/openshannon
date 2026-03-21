@@ -1,0 +1,82 @@
+# Claude Channels — Configuration
+# Copy to ~/.config/claude-channels/config.yaml and edit.
+# Secrets should go in ~/.config/claude-channels/env instead.
+
+# ── Telegram ──────────────────────────────────────────
+telegram:
+  # Bot token from @BotFather (use env file instead for secrets)
+  token: "${TELEGRAM_BOT_TOKEN}"
+
+  # Your Telegram user ID (get it from @userinfobot)
+  allowed_users:
+    - 123456789
+
+  # Long polling timeout
+  long_poll_timeout: 30s
+
+# ── Claude Code ───────────────────────────────────────
+claude:
+  binary: claude
+  default_workdir: "~"
+  flags:
+    - "--dangerously-skip-permissions"
+    - "--output-format"
+    - "stream-json"
+    - "--verbose"
+  session_idle_timeout: 30m
+  default_timeout: 5m
+  long_task_timeout: 30m
+  max_budget_usd: 10.0
+
+# ── STT (Voice Note) ─────────────────────────────────
+stt:
+  backend: groq                      # "groq" | "local"
+  groq_key: "${GROQ_API_KEY}"
+  model: whisper-large-v3-turbo
+  language: ""                       # empty = auto detect
+
+# ── Streaming ─────────────────────────────────────────
+streaming:
+  enabled: true
+  min_interval: 1s
+  min_chunk_size: 200
+  max_message_length: 4096
+
+# ── Safety ────────────────────────────────────────────
+safety:
+  shell_timeout: 30s
+  blocked_prompts:
+    - "(?i)rm\\s+-rf\\s+[/~]"
+    - "(?i)mkfs"
+    - "(?i)dd\\s+if="
+    - "(?i)curl.*\\|\\s*sh"
+    - "(?i)wget.*\\|\\s*sh"
+  blocked_shell:
+    - "(?i)^sudo"
+    - "(?i)^su\\s"
+    - "(?i)shutdown|reboot"
+    - "(?i)git\\s+push\\s+--force"
+    - "(?i)git\\s+reset\\s+--hard"
+    - "(?i)docker\\s+rm\\s+-f"
+  protected_paths:
+    - "/etc/"
+    - "/boot/"
+    - "/sys/"
+    - "~/.ssh/authorized_keys"
+    - "~/.claude/settings\\.json"
+
+# ── Notifications ────────────────────────────────────
+notify:
+  enabled: false
+  ntfy_server: "https://ntfy.sh"
+  ntfy_topic: "${NTFY_TOPIC}"
+  ntfy_token: "${NTFY_TOKEN}"
+  events:
+    - daemon_start
+    - daemon_crash
+    - safety_block
+    - long_task_complete
+
+# ── Storage ──────────────────────────────────────────
+storage:
+  dir: "~/.config/claude-channels"

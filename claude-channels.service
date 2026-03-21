@@ -1,0 +1,24 @@
+[Unit]
+Description=Claude Channels Telegram Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/go/bin/claude-channels --config %h/.config/claude-channels/config.yaml
+WorkingDirectory=%h
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=%h/.config/claude-channels/env
+Environment="HOME=%h"
+Environment=TMPDIR=/tmp
+Environment="PATH=%h/.local/bin:%h/.cargo/bin:%h/.local/share/bob/nvim-bin:%h/.local/share/mise/shims:%h/go/bin:%h/.bun/bin:%h/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin"
+Environment="GOPATH=%h/go"
+NoNewPrivileges=true
+ReadWritePaths=%h
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=claude-channels
+
+[Install]
+WantedBy=default.target

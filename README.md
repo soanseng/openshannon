@@ -1,0 +1,273 @@
+# Claude Channels
+
+A Go daemon that bridges Telegram to [Claude Code](https://docs.anthropic.com/en/docs/claude-code), enabling remote control of a Claude Code agent from your phone. Think of it as your personal coding assistant that you can message from anywhere.
+
+Each Telegram Forum Topic maps to an isolated Claude Code session with its own working directory and conversation context.
+
+## Features
+
+- **Text, voice, photos, files** — send any message type to Claude
+- **Streaming responses** — see Claude thinking in real-time via `editMessageText`
+- **Session management** — multiple isolated sessions mapped to Forum Topics
+- **Safety filter** — dual-layer protection (Go blocklist + Claude Code deny list)
+- **Direct shell** — `/shell` command for quick system commands
+- **ntfy notifications** — push alerts for daemon events
+- **systemd service** — auto-restart, journald logging
+- **Single binary** — no runtime dependencies beyond `claude` CLI
+
+## Prerequisites
+
+- **Go 1.22+**
+- **Claude Code CLI** installed and authenticated (`claude --version`)
+- **Telegram Bot** — create one via [@BotFather](https://t.me/BotFather)
+- **Your Telegram User ID** — get it from [@userinfobot](https://t.me/userinfobot)
+- (Optional) **Groq API key** for voice note transcription
+
+## Quick Start
+
+### 1. Create Telegram Bot
+
+1. Open [@BotFather](https://t.me/BotFather) in Telegram
+2. Send `/newbot` and follow the prompts
+3. Copy the bot token (looks like `7123456789:AAH...`)
+4. Send `/setprivacy` → select your bot → `Disable` (so bot can read group messages)
+5. (Optional) Send `/setcommands` and paste:
+   ```
+   new - Create new session
+   resume - Resume idle session
+   sessions - List all sessions
+   clear - Clear Claude context, keep workdir
+   kill - Kill session completely
+   cd - Change working directory
+   status - Daemon status
+   cancel - Cancel running command
+   shell - Run shell command directly
+   long - Run with extended timeout
+   help - Show all commands
+   ```
+
+### 2. Set Up Forum Group (Recommended)
+
+1. Create a new Telegram Group
+2. Go to Group Settings → Topics → Enable
+3. Add your bot to the group
+4. Make the bot an admin (needed for topic access)
+5. Create topics for your projects: "infra", "feedbot", etc.
+
+Each topic becomes an isolated Claude Code session.
+
+### 3. Install
+
+```bash
+git clone https://github.com/scipio/claude-channels.git ~/infra/claude-channels
+cd ~/infra/claude-channels
+
+# Build
+make build
+
+# Create config
+make install
+```
+
+### 4. Configure
+
+Edit `~/.config/claude-channels/config.yaml`:
+
+```yaml
+telegram:
+  token: "${TELEGRAM_BOT_TOKEN}"
+  allowed_users:
+    - YOUR_TELEGRAM_USER_ID    # <-- replace this
+```
+
+Edit `~/.config/claude-channels/env`:
+
+```bash
+TELEGRAM_BOT_TOKEN=7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Optional:
+GROQ_API_KEY=gsk_xxxxxxxxxxxxx
+NTFY_TOPIC=claude-agent
+NTFY_TOKEN=tk_xxxxxxxxxxxxx
+```
+
+Set permissions:
+
+```bash
+chmod 600 ~/.config/claude-channels/env
+```
+
+### 5. Test Run
+
+```bash
+# Run in foreground first to verify
+cd ~/infra/claude-channels
+make run
+```
+
+Open Telegram, send `/status` to your bot. You should see a status message with uptime and version.
+
+### 6. Deploy as Service
+
+```bash
+# Enable and start systemd user service
+make start
+
+# Verify
+make status
+make logs
+```
+
+Enable lingering so the service runs without a login session:
+
+```bash
+loginctl enable-linger $(whoami)
+```
+
+## Usage
+
+### Basic Interaction
+
+Just send a text message to the bot — it goes straight to Claude Code as a prompt:
+
+```
+You: help me find all TODO comments in the codebase
+Bot: ⚡ (processing...)
+Bot: I found 12 TODO comments across 5 files...
+```
+
+### Commands
+
+| Command | Description | Example |
+|---|---|---|
+| `/new [workdir]` | Create new session | `/new ~/infra` |
+| `/resume [id]` | Resume idle session | `/resume` |
+| `/sessions` | List all sessions | `/sessions` |
+| `/clear` | Reset Claude context, keep workdir | `/clear` |
+| `/kill [id]` | Kill session completely | `/kill` |
+| `/cd <path>` | Change working directory | `/cd ~/apps/feedbot` |
+| `/status` | Daemon status and stats | `/status` |
+| `/cancel` | Cancel running command | `/cancel` |
+| `/shell <cmd>` | Run shell command directly | `/shell git status` |
+| `/long <prompt>` | Extended 30m timeout | `/long refactor the entire module` |
+| `/help` | Show all commands | `/help` |
+
+### Forum Topics = Sessions
+
+In a Forum-enabled group, each topic is an isolated session:
+
+```
+Topic: "infra"           → workdir: ~/infra
+Topic: "feedbot"         → workdir: ~/apps/feedbot
+Topic: "claude-channels" → workdir: ~/infra/claude-channels
+```
+
+First message in a new topic auto-creates a session. Use `/cd` to set the workdir.
+
+### Session Lifecycle
+
+```
+/clear  → Reset Claude context, keep workdir and topic binding
+/kill   → Remove everything, topic returns to unbound state
+```
+
+### Direct Shell
+
+`/shell` bypasses Claude and runs commands directly:
+
+```
+You: /shell docker ps
+Bot: CONTAINER ID  IMAGE         STATUS
+     a1b2c3d4      nginx:latest  Up 2 hours
+```
+
+Shell commands are safety-filtered (no `sudo`, `rm -rf`, `git push --force`, etc.) and have a 30-second timeout.
+
+## Safety
+
+Two layers of protection:
+
+**Layer 1 — Go daemon blocklist** (before Claude sees the prompt):
+- Blocks dangerous patterns: `rm -rf /`, `mkfs`, `dd if=`, `curl | sh`
+- Blocks dangerous shell commands: `sudo`, `shutdown`, `git push --force`
+- Protects sensitive paths: `/etc/`, `/boot/`, `~/.ssh/authorized_keys`
+- `/cd` to protected paths is rejected
+
+**Layer 2 — Claude Code deny list** (your existing `settings.json`):
+- Blocks tool executions: `Bash(sudo *)`, `Bash(rm -rf /*)`, etc.
+
+## Configuration Reference
+
+See [`config.example.yaml`](config.example.yaml) for all options with comments.
+
+Key settings:
+
+| Setting | Default | Description |
+|---|---|---|
+| `claude.default_timeout` | `5m` | Max time per Claude invocation |
+| `claude.long_task_timeout` | `30m` | Timeout for `/long` commands |
+| `claude.max_budget_usd` | `10.0` | Cost cap per invocation |
+| `safety.shell_timeout` | `30s` | Max time for `/shell` commands |
+| `streaming.min_interval` | `1s` | Min time between message edits |
+| `streaming.max_message_length` | `4096` | Telegram message length limit |
+
+## ntfy Notifications
+
+Enable push notifications for daemon events:
+
+```yaml
+notify:
+  enabled: true
+  ntfy_server: "https://ntfy.sh"      # or your self-hosted instance
+  ntfy_topic: "claude-agent"
+  events:
+    - daemon_start
+    - daemon_crash
+    - safety_block
+    - long_task_complete
+```
+
+## Monitoring
+
+```bash
+# Live logs
+make logs
+
+# Service status
+make status
+
+# In Telegram
+/status
+```
+
+## Project Structure
+
+```
+internal/
+├── config/       Config loading (YAML + env vars)
+├── session/      Session lifecycle + persistence
+├── safety/       Blocklist filter + path validation
+├── claude/       Claude CLI executor + streaming
+├── router/       Command parsing + session key mapping
+├── telegram/     Bot, handler, formatter
+└── notify/       ntfy push notifications
+```
+
+## Development
+
+```bash
+# Run tests
+make test
+
+# Run with race detector + coverage
+make cover
+
+# Run in foreground
+make run
+
+# Build
+make build
+```
+
+## License
+
+MIT
