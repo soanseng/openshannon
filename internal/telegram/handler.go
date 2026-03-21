@@ -1,0 +1,472 @@
+package telegram
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"log/slog"
+	"os/exec"
+	"strings"
+	"sync"
+	"time"
+
+	tele "gopkg.in/telebot.v4"
+
+	"github.com/scipio/claude-channels/internal/router"
+)
+
+// handleMessage is the main entry point registered with telebot for all text messages.
+func (b *Bot) handleMessage(c tele.Context) error {
+	msg := c.Message()
+	if msg == nil || msg.Sender == nil {
+		return nil
+	}
+
+	if !router.IsAllowed(b.allowed, msg.Sender.ID) {
+		return nil // silent ignore for unauthorised users
+	}
+
+	key := router.SessionKey(
+		string(msg.Chat.Type),
+		msg.Chat.ID,
+		msg.ThreadID,
+		msg.TopicMessage,
+		msg.Sender.ID,
+	)
+
+	cmd, args := router.ParseCommand(msg.Text)
+
+	switch cmd {
+	case "new":
+		return b.handleNew(c, key, args)
+	case "resume":
+		return b.handleResume(c, key, args)
+	case "sessions":
+		return b.handleSessions(c)
+	case "clear":
+		return b.handleClear(c, key)
+	case "kill":
+		return b.handleKill(c, key, args)
+	case "cd":
+		return b.handleCd(c, key, args)
+	case "status":
+		return b.handleStatus(c)
+	case "cancel":
+		return b.handleCancel(c, key)
+	case "shell":
+		return b.handleShell(c, key, args)
+	case "long":
+		return b.handleLong(c, key, args)
+	case "help":
+		return b.handleHelp(c)
+	default:
+		if cmd != "" {
+			return c.Reply(fmt.Sprintf("Unknown command: /%s\nUse /help for available commands.", cmd))
+		}
+		return b.handlePrompt(c, key, msg.Text)
+	}
+}
+
+// handleNew starts a fresh session (no Claude --resume) in the given workdir.
+func (b *Bot) handleNew(c tele.Context, key, args string) error {
+	workdir := strings.TrimSpace(args)
+	if workdir == "" {
+		workdir = b.cfg.Claude.DefaultWorkdir
+	}
+	workdir = router.ExpandHome(workdir, homeDir())
+
+	// Kill any existing session for this key so Create succeeds.
+	_ = b.sessions.Kill(key)
+
+	sess, err := b.sessions.Create(key, workdir)
+	if err != nil {
+		return c.Reply(fmt.Sprintf("Failed to create session: %s", err))
+	}
+
+	return c.Reply(fmt.Sprintf("New session started.\nWorkdir: <code>%s</code>\nKey: <code>%s</code>", EscapeHTML(sess.Workdir), EscapeHTML(sess.Key)), tele.ModeHTML)
+}
+
+// handleResume resumes a specific Claude session by ID.
+func (b *Bot) handleResume(c tele.Context, key, args string) error {
+	claudeSessionID := strings.TrimSpace(args)
+	if claudeSessionID == "" {
+		return c.Reply("Usage: /resume <session-id>")
+	}
+
+	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+	sess.ClaudeSession = claudeSessionID
+	sess.LastActiveAt = time.Now()
+
+	return c.Reply(fmt.Sprintf("Resumed Claude session: <code>%s</code>", EscapeHTML(claudeSessionID)), tele.ModeHTML)
+}
+
+// handleSessions lists all tracked sessions.
+func (b *Bot) handleSessions(c tele.Context) error {
+	sessions := b.sessions.List()
+	if len(sessions) == 0 {
+		return c.Reply("No active sessions.")
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("<b>Sessions</b> (%d)\n\n", len(sessions)))
+	for _, sess := range sessions {
+		sb.WriteString(fmt.Sprintf(
+			"<b>%s</b>\n  State: %s\n  Workdir: <code>%s</code>\n  Claude: <code>%s</code>\n  Last active: %s\n\n",
+			EscapeHTML(sess.Key),
+			EscapeHTML(string(sess.State)),
+			EscapeHTML(sess.Workdir),
+			EscapeHTML(sess.ClaudeSession),
+			sess.LastActiveAt.Format(time.DateTime),
+		))
+	}
+
+	return c.Reply(sb.String(), tele.ModeHTML)
+}
+
+// handleClear resets the Claude session ID (fresh conversation) but keeps the workdir.
+func (b *Bot) handleClear(c tele.Context, key string) error {
+	if err := b.sessions.Clear(key); err != nil {
+		return c.Reply(fmt.Sprintf("No session to clear: %s", err))
+	}
+	return c.Reply("Session cleared. Next prompt starts a fresh conversation.")
+}
+
+// handleKill removes a session entirely.
+func (b *Bot) handleKill(c tele.Context, key, args string) error {
+	target := strings.TrimSpace(args)
+	if target == "" {
+		target = key
+	}
+	if err := b.sessions.Kill(target); err != nil {
+		return c.Reply(fmt.Sprintf("Failed to kill session: %s", err))
+	}
+	return c.Reply(fmt.Sprintf("Session <code>%s</code> killed.", EscapeHTML(target)), tele.ModeHTML)
+}
+
+// handleCd changes the working directory for the current session.
+func (b *Bot) handleCd(c tele.Context, key, args string) error {
+	dir := strings.TrimSpace(args)
+	if dir == "" {
+		return c.Reply("Usage: /cd <path>")
+	}
+	dir = router.ExpandHome(dir, homeDir())
+
+	// Safety check: ensure path is not protected.
+	if result := b.filter.CheckPath(dir); !result.Allowed {
+		b.stats.incBlocked()
+		slog.Warn("cd blocked by safety filter",
+			"dir", dir,
+			"reason", result.Reason,
+			"rule", result.Rule,
+		)
+		_ = b.notifier.Send("safety_block", fmt.Sprintf("cd blocked: %s -> %s", dir, result.Rule))
+		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
+	}
+
+	sess := b.sessions.GetOrCreate(key, dir)
+	if err := b.sessions.SetWorkdir(key, dir); err != nil {
+		return c.Reply(fmt.Sprintf("Failed: %s", err))
+	}
+
+	_ = sess // used to ensure session exists
+	return c.Reply(fmt.Sprintf("Workdir changed to <code>%s</code>", EscapeHTML(dir)), tele.ModeHTML)
+}
+
+// handleStatus shows bot uptime, version, sessions, and stats.
+func (b *Bot) handleStatus(c tele.Context) error {
+	uptime := time.Since(b.startTime).Round(time.Second)
+	sessions := b.sessions.List()
+	prompts, shell, blocked, errors := b.stats.snapshot()
+
+	var sb strings.Builder
+	sb.WriteString("<b>claude-channels status</b>\n\n")
+	sb.WriteString(fmt.Sprintf("Version: <code>%s</code>\n", EscapeHTML(Version)))
+	sb.WriteString(fmt.Sprintf("Uptime: %s\n", uptime))
+	sb.WriteString(fmt.Sprintf("Bot: @%s\n\n", EscapeHTML(b.bot.Me.Username)))
+
+	sb.WriteString(fmt.Sprintf("<b>Stats</b>\n"))
+	sb.WriteString(fmt.Sprintf("  Prompts: %d\n", prompts))
+	sb.WriteString(fmt.Sprintf("  Shell commands: %d\n", shell))
+	sb.WriteString(fmt.Sprintf("  Blocked: %d\n", blocked))
+	sb.WriteString(fmt.Sprintf("  Errors: %d\n\n", errors))
+
+	sb.WriteString(fmt.Sprintf("<b>Sessions</b> (%d)\n", len(sessions)))
+	for _, sess := range sessions {
+		sb.WriteString(fmt.Sprintf(
+			"  <code>%s</code> [%s] %s (last: %s)\n",
+			EscapeHTML(sess.Key),
+			EscapeHTML(string(sess.State)),
+			EscapeHTML(sess.Workdir),
+			sess.LastActiveAt.Format("15:04:05"),
+		))
+	}
+
+	return c.Reply(sb.String(), tele.ModeHTML)
+}
+
+// handleCancel terminates the currently running Claude process, if any.
+func (b *Bot) handleCancel(c tele.Context, key string) error {
+	if err := b.executor.Cancel(); err != nil {
+		return c.Reply(fmt.Sprintf("Cancel failed: %s", err))
+	}
+	return c.Reply("Cancelled running Claude process.")
+}
+
+// handleShell executes a shell command in the session's workdir.
+func (b *Bot) handleShell(c tele.Context, key, args string) error {
+	cmdStr := strings.TrimSpace(args)
+	if cmdStr == "" {
+		return c.Reply("Usage: /shell <command>")
+	}
+
+	// Safety check.
+	if result := b.filter.CheckShell(cmdStr); !result.Allowed {
+		b.stats.incBlocked()
+		slog.Warn("shell command blocked",
+			"cmd", cmdStr,
+			"reason", result.Reason,
+			"rule", result.Rule,
+		)
+		_ = b.notifier.Send("safety_block", fmt.Sprintf("shell blocked: %s -> %s", cmdStr, result.Rule))
+		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
+	}
+
+	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+	workdir := router.ExpandHome(sess.Workdir, homeDir())
+
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.Safety.ShellTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
+	cmd.Dir = workdir
+	cmd.Env = append(cmd.Environ(),
+		"HOME="+homeDir(),
+		"TMPDIR=/tmp",
+	)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	b.react(c.Message(), "⚡")
+	b.stats.incShell()
+
+	err := cmd.Run()
+	b.sessions.Touch(key)
+
+	var sb strings.Builder
+	if stdout.Len() > 0 {
+		sb.WriteString(stdout.String())
+	}
+	if stderr.Len() > 0 {
+		if sb.Len() > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(stderr.String())
+	}
+
+	output := sb.String()
+	if err != nil {
+		output += fmt.Sprintf("\n\nexit: %s", err)
+	}
+
+	if output == "" {
+		output = "(no output)"
+	}
+
+	// Wrap in <pre> for readability.
+	reply := fmt.Sprintf("<pre>%s</pre>", EscapeHTML(strings.TrimSpace(output)))
+	if len(reply) > b.cfg.Streaming.MaxMessageLength {
+		return b.sendChunked(c.Message().Chat, output, c.Message().ThreadID)
+	}
+	return c.Reply(reply, tele.ModeHTML)
+}
+
+// handleLong sends a prompt to Claude with the long task timeout.
+func (b *Bot) handleLong(c tele.Context, key, args string) error {
+	prompt := strings.TrimSpace(args)
+	if prompt == "" {
+		return c.Reply("Usage: /long <prompt>")
+	}
+	return b.runPrompt(c, key, prompt, b.cfg.Claude.LongTaskTimeout)
+}
+
+// handleHelp sends a list of available commands.
+func (b *Bot) handleHelp(c tele.Context) error {
+	help := `<b>claude-channels commands</b>
+
+<b>Session management</b>
+/new [workdir] — Start fresh session
+/resume &lt;session-id&gt; — Resume Claude session
+/sessions — List all sessions
+/clear — Clear Claude session (keep workdir)
+/kill [key] — Remove session entirely
+/cd &lt;path&gt; — Change working directory
+/cancel — Cancel running Claude process
+
+<b>Interaction</b>
+/shell &lt;command&gt; — Run shell command
+/long &lt;prompt&gt; — Prompt with long timeout (30m)
+
+<b>Info</b>
+/status — Show bot status and stats
+/help — This message
+
+<b>Prompting</b>
+Send any text without a / prefix to prompt Claude.`
+
+	return c.Reply(help, tele.ModeHTML)
+}
+
+// handlePrompt sends the user's text to Claude and streams the response.
+func (b *Bot) handlePrompt(c tele.Context, key, prompt string) error {
+	return b.runPrompt(c, key, prompt, b.cfg.Claude.DefaultTimeout)
+}
+
+// runPrompt is the shared implementation for handlePrompt and handleLong.
+func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duration) error {
+	msg := c.Message()
+
+	// 1. React with eyes to acknowledge receipt.
+	b.react(msg, "👀")
+
+	// 2. Get or create session.
+	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+	workdir := router.ExpandHome(sess.Workdir, homeDir())
+
+	// 3. Safety filter.
+	if result := b.filter.CheckPrompt(prompt); !result.Allowed {
+		b.stats.incBlocked()
+		b.react(msg, "🚫")
+		slog.Warn("prompt blocked by safety filter",
+			"reason", result.Reason,
+			"rule", result.Rule,
+		)
+		_ = b.notifier.Send("safety_block", fmt.Sprintf("prompt blocked: %s", result.Rule))
+		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
+	}
+
+	// 4. React with lightning to signal processing started.
+	b.react(msg, "⚡")
+	b.stats.incPrompts()
+
+	// 5. Send placeholder.
+	placeholder, err := b.sendMessage(msg.Chat, "Thinking...", msg.ThreadID, "")
+	if err != nil {
+		slog.Error("failed to send placeholder", "err", err)
+		b.stats.incErrors()
+		return fmt.Errorf("failed to send placeholder: %w", err)
+	}
+
+	// 6. Run Claude with streaming.
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	var (
+		accumulated strings.Builder
+		lastEdit    time.Time
+		editMu      sync.Mutex
+	)
+
+	streamCb := func(text string) {
+		editMu.Lock()
+		defer editMu.Unlock()
+
+		accumulated.WriteString(text)
+
+		// Throttle edits: at least MinInterval apart and MinChunkSize accumulated.
+		now := time.Now()
+		sinceLastEdit := now.Sub(lastEdit)
+		accLen := accumulated.Len()
+
+		if sinceLastEdit < b.cfg.Streaming.MinInterval && accLen < b.cfg.Streaming.MinChunkSize {
+			return
+		}
+		if accLen == 0 {
+			return
+		}
+
+		// Truncate if the accumulated text exceeds max message length.
+		preview := accumulated.String()
+		if len(preview) > b.cfg.Streaming.MaxMessageLength-20 {
+			preview = preview[:b.cfg.Streaming.MaxMessageLength-30] + "\n\n... (streaming)"
+		}
+
+		_, editErr := b.editMessage(placeholder, preview, "")
+		if editErr != nil {
+			slog.Debug("stream edit failed", "err", editErr)
+			return
+		}
+		lastEdit = now
+	}
+
+	result, err := b.executor.RunWithStream(ctx, sess.ClaudeSession, workdir, prompt, streamCb)
+
+	b.sessions.Touch(key)
+
+	// 7. Handle errors.
+	if err != nil {
+		b.stats.incErrors()
+		b.react(msg, "❌")
+		errMsg := fmt.Sprintf("Error: %s", EscapeHTML(err.Error()))
+		_, _ = b.editMessage(placeholder, errMsg, tele.ModeHTML)
+		return nil // don't propagate; user already informed
+	}
+
+	// 8. Save session ID from result.
+	if result.SessionID != "" {
+		_ = b.sessions.SetClaudeSession(key, result.SessionID)
+	}
+
+	_ = b.sessions.Save()
+
+	// 9. Final response.
+	finalText := result.Text
+	if finalText == "" {
+		finalText = accumulated.String()
+	}
+
+	if finalText == "" {
+		finalText = "(empty response)"
+	}
+
+	// Try to format as HTML and edit the placeholder.
+	html := MarkdownToHTML(finalText)
+
+	if len(html) <= b.cfg.Streaming.MaxMessageLength {
+		_, editErr := b.editMessage(placeholder, html, tele.ModeHTML)
+		if editErr != nil {
+			// Fall back to plain text.
+			_, _ = b.editMessage(placeholder, finalText, "")
+		}
+	} else {
+		// Delete placeholder and send as chunks.
+		_ = b.bot.Delete(placeholder)
+		if chunkErr := b.sendChunked(msg.Chat, finalText, msg.ThreadID); chunkErr != nil {
+			b.stats.incErrors()
+			slog.Error("failed to send chunked response", "err", chunkErr)
+			return c.Reply("Failed to send response (too long).")
+		}
+	}
+
+	// 10. Success reaction.
+	b.react(msg, "✅")
+
+	if result.CostUSD > 0 {
+		slog.Info("prompt completed",
+			"key", key,
+			"cost_usd", result.CostUSD,
+			"session_id", result.SessionID,
+		)
+	}
+
+	// Notify on long tasks.
+	if timeout >= b.cfg.Claude.LongTaskTimeout {
+		_ = b.notifier.Send("long_task_complete", fmt.Sprintf("Long task done (cost: $%.4f)", result.CostUSD))
+	}
+
+	return nil
+}
+
+// Version is set at build time via -ldflags.
+var Version = "dev"

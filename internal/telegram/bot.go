@@ -1,0 +1,199 @@
+package telegram
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"sync"
+	"time"
+
+	tele "gopkg.in/telebot.v4"
+
+	"github.com/scipio/claude-channels/internal/claude"
+	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/claude-channels/internal/notify"
+	"github.com/scipio/claude-channels/internal/safety"
+	"github.com/scipio/claude-channels/internal/session"
+)
+
+// Bot wraps a telebot instance with application-level dependencies.
+type Bot struct {
+	bot       *tele.Bot
+	cfg       *config.Config
+	sessions  *session.Manager
+	executor  claude.Executor
+	filter    *safety.Filter
+	notifier  *notify.Notifier
+	allowed   map[int64]bool
+	startTime time.Time
+	stats     *Stats
+}
+
+// Stats tracks aggregate bot usage counters.
+type Stats struct {
+	mu            sync.Mutex
+	Prompts       int
+	ShellCommands int
+	Blocked       int
+	Errors        int
+}
+
+func (s *Stats) incPrompts() {
+	s.mu.Lock()
+	s.Prompts++
+	s.mu.Unlock()
+}
+
+func (s *Stats) incShell() {
+	s.mu.Lock()
+	s.ShellCommands++
+	s.mu.Unlock()
+}
+
+func (s *Stats) incBlocked() {
+	s.mu.Lock()
+	s.Blocked++
+	s.mu.Unlock()
+}
+
+func (s *Stats) incErrors() {
+	s.mu.Lock()
+	s.Errors++
+	s.mu.Unlock()
+}
+
+func (s *Stats) snapshot() (prompts, shell, blocked, errors int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Prompts, s.ShellCommands, s.Blocked, s.Errors
+}
+
+// NewBot creates a Bot ready to start polling Telegram for updates.
+func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Executor, filter *safety.Filter, notifier *notify.Notifier) (*Bot, error) {
+	pref := tele.Settings{
+		Token:  cfg.Telegram.Token,
+		Poller: &tele.LongPoller{Timeout: cfg.Telegram.LongPollTimeout},
+		OnError: func(err error, c tele.Context) {
+			slog.Error("telebot error", "err", err)
+		},
+	}
+
+	teleBot, err := tele.NewBot(pref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create telegram bot: %w", err)
+	}
+
+	allowed := make(map[int64]bool, len(cfg.Telegram.AllowedUsers))
+	for _, uid := range cfg.Telegram.AllowedUsers {
+		allowed[uid] = true
+	}
+
+	b := &Bot{
+		bot:       teleBot,
+		cfg:       cfg,
+		sessions:  sessions,
+		executor:  executor,
+		filter:    filter,
+		notifier:  notifier,
+		allowed:   allowed,
+		startTime: time.Now(),
+		stats:     &Stats{},
+	}
+
+	teleBot.Handle(tele.OnText, b.handleMessage)
+
+	return b, nil
+}
+
+// Start begins long-polling and blocks until ctx is cancelled.
+// On context cancellation it performs a graceful shutdown: stops the
+// bot poller and persists sessions.
+func (b *Bot) Start(ctx context.Context) error {
+	slog.Info("bot starting",
+		"username", b.bot.Me.Username,
+		"allowed_users", len(b.allowed),
+	)
+
+	_ = b.notifier.Send("daemon_start", fmt.Sprintf("claude-channels started as @%s", b.bot.Me.Username))
+
+	// Run the blocking poller in a separate goroutine so we can
+	// select on ctx.Done().
+	done := make(chan struct{})
+	go func() {
+		b.bot.Start()
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+		slog.Info("shutting down bot")
+		b.bot.Stop()
+		<-done
+	case <-done:
+		// Poller stopped on its own (unlikely in normal operation).
+	}
+
+	if err := b.sessions.Save(); err != nil {
+		slog.Error("failed to save sessions on shutdown", "err", err)
+		return fmt.Errorf("failed to save sessions: %w", err)
+	}
+
+	slog.Info("bot stopped, sessions saved")
+	return nil
+}
+
+// sendMessage sends text to a recipient, optionally in a specific forum thread.
+func (b *Bot) sendMessage(to tele.Recipient, text string, threadID int, parseMode string) (*tele.Message, error) {
+	opts := &tele.SendOptions{
+		ThreadID:  threadID,
+		ParseMode: parseMode,
+	}
+	return b.bot.Send(to, text, opts)
+}
+
+// editMessage edits an existing message with new text and optional parse mode.
+func (b *Bot) editMessage(msg *tele.Message, text string, parseMode string) (*tele.Message, error) {
+	if parseMode != "" {
+		return b.bot.Edit(msg, text, parseMode)
+	}
+	return b.bot.Edit(msg, text)
+}
+
+// react sets an emoji reaction on a message.
+func (b *Bot) react(msg *tele.Message, emoji string) {
+	err := b.bot.React(msg.Chat, msg, tele.Reactions{
+		Reactions: []tele.Reaction{
+			{Type: tele.ReactionTypeEmoji, Emoji: emoji},
+		},
+	})
+	if err != nil {
+		slog.Debug("failed to set reaction", "err", err, "emoji", emoji)
+	}
+}
+
+// sendChunked splits text into Telegram-safe chunks and sends them
+// sequentially in the given thread.
+func (b *Bot) sendChunked(to tele.Recipient, text string, threadID int) error {
+	chunks := ChunkMessage(text, b.cfg.Streaming.MaxMessageLength)
+	for _, chunk := range chunks {
+		html := MarkdownToHTML(chunk)
+		_, err := b.sendMessage(to, html, threadID, tele.ModeHTML)
+		if err != nil {
+			// Fall back to plain text if HTML parse fails.
+			_, err = b.sendMessage(to, chunk, threadID, "")
+			if err != nil {
+				return fmt.Errorf("failed to send chunk: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// homeDir returns the current user's home directory, falling back to "/tmp".
+func homeDir() string {
+	if h, err := os.UserHomeDir(); err == nil {
+		return h
+	}
+	return "/tmp"
+}
