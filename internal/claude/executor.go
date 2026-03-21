@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"strings"
 	"sync"
@@ -25,23 +26,28 @@ type Result struct {
 type StreamCallback func(text string)
 
 // Executor interface for running Claude CLI commands.
+// The key parameter identifies the session (e.g. "topic:123") so that
+// concurrent topics each get their own process.
 type Executor interface {
-	Run(ctx context.Context, sessionID, workdir, prompt string) (*Result, error)
-	RunWithStream(ctx context.Context, sessionID, workdir, prompt string, cb StreamCallback) (*Result, error)
-	Cancel() error
+	Run(ctx context.Context, key, sessionID, workdir, prompt string) (*Result, error)
+	RunWithStream(ctx context.Context, key, sessionID, workdir, prompt string, cb StreamCallback) (*Result, error)
+	Cancel(key string) error
 }
 
 // CLIExecutor spawns claude -p processes.
 type CLIExecutor struct {
 	cfg config.ClaudeConfig
 
-	mu  sync.Mutex
-	cmd *exec.Cmd
+	mu   sync.Mutex
+	cmds map[string]*exec.Cmd
 }
 
 // NewCLIExecutor creates a new CLIExecutor with the given configuration.
 func NewCLIExecutor(cfg config.ClaudeConfig) *CLIExecutor {
-	return &CLIExecutor{cfg: cfg}
+	return &CLIExecutor{
+		cfg:  cfg,
+		cmds: make(map[string]*exec.Cmd),
+	}
 }
 
 // buildArgs constructs the CLI argument list for a Claude invocation.
@@ -66,14 +72,20 @@ func (e *CLIExecutor) binary() string {
 
 // Run invokes the Claude CLI and returns the complete result.
 // All stdout is collected, and the last line is parsed as the result JSON.
-func (e *CLIExecutor) Run(ctx context.Context, sessionID, workdir, prompt string) (*Result, error) {
+func (e *CLIExecutor) Run(ctx context.Context, key, sessionID, workdir, prompt string) (*Result, error) {
 	args := e.buildArgs(sessionID, workdir, prompt)
 	cmd := exec.CommandContext(ctx, e.binary(), args...)
 	cmd.Dir = workdir
 
 	e.mu.Lock()
-	e.cmd = cmd
+	e.cmds[key] = cmd
 	e.mu.Unlock()
+
+	defer func() {
+		e.mu.Lock()
+		delete(e.cmds, key)
+		e.mu.Unlock()
+	}()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -94,14 +106,20 @@ func (e *CLIExecutor) Run(ctx context.Context, sessionID, workdir, prompt string
 // RunWithStream invokes the Claude CLI and streams output line by line.
 // The StreamCallback is called for each text chunk received. The final
 // Result is returned when the process completes.
-func (e *CLIExecutor) RunWithStream(ctx context.Context, sessionID, workdir, prompt string, cb StreamCallback) (*Result, error) {
+func (e *CLIExecutor) RunWithStream(ctx context.Context, key, sessionID, workdir, prompt string, cb StreamCallback) (*Result, error) {
 	args := e.buildArgs(sessionID, workdir, prompt)
 	cmd := exec.CommandContext(ctx, e.binary(), args...)
 	cmd.Dir = workdir
 
 	e.mu.Lock()
-	e.cmd = cmd
+	e.cmds[key] = cmd
 	e.mu.Unlock()
+
+	defer func() {
+		e.mu.Lock()
+		delete(e.cmds, key)
+		e.mu.Unlock()
+	}()
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -117,6 +135,7 @@ func (e *CLIExecutor) RunWithStream(ctx context.Context, sessionID, workdir, pro
 
 	var finalResult *Result
 	scanner := bufio.NewScanner(stdoutPipe)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		text, isResult, result, parseErr := parseStreamLine(line)
@@ -130,6 +149,9 @@ func (e *CLIExecutor) RunWithStream(ctx context.Context, sessionID, workdir, pro
 			finalResult = result
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		slog.Warn("scanner error reading claude output", "err", err)
+	}
 
 	if err := cmd.Wait(); err != nil {
 		return nil, fmt.Errorf("claude CLI failed: %w (stderr: %s)", err, stderr.String())
@@ -142,10 +164,10 @@ func (e *CLIExecutor) RunWithStream(ctx context.Context, sessionID, workdir, pro
 	return finalResult, nil
 }
 
-// Cancel terminates the running Claude CLI process, if any.
-func (e *CLIExecutor) Cancel() error {
+// Cancel terminates the running Claude CLI process for the given session key.
+func (e *CLIExecutor) Cancel(key string) error {
 	e.mu.Lock()
-	cmd := e.cmd
+	cmd := e.cmds[key]
 	e.mu.Unlock()
 
 	if cmd == nil || cmd.Process == nil {
@@ -253,7 +275,7 @@ type MockExecutor struct {
 }
 
 // Run returns the pre-configured response or error.
-func (m *MockExecutor) Run(_ context.Context, _, _, _ string) (*Result, error) {
+func (m *MockExecutor) Run(_ context.Context, _, _, _, _ string) (*Result, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -265,7 +287,7 @@ func (m *MockExecutor) Run(_ context.Context, _, _, _ string) (*Result, error) {
 }
 
 // RunWithStream calls the callback for each StreamChunk, then returns the result.
-func (m *MockExecutor) RunWithStream(_ context.Context, _, _, _ string, cb StreamCallback) (*Result, error) {
+func (m *MockExecutor) RunWithStream(_ context.Context, _, _, _, _ string, cb StreamCallback) (*Result, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -282,6 +304,6 @@ func (m *MockExecutor) RunWithStream(_ context.Context, _, _, _ string, cb Strea
 }
 
 // Cancel is a no-op for the mock executor.
-func (m *MockExecutor) Cancel() error {
+func (m *MockExecutor) Cancel(_ string) error {
 	return nil
 }

@@ -2,6 +2,7 @@
 package notify
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -64,13 +65,20 @@ func New(cfg config.NotifyConfig) *Notifier {
 
 // Send sends a notification if the event type is enabled.
 // Returns nil if notifications are disabled or the event is not in the allowed list.
+// Deprecated: Use SendCtx with a context for proper cancellation/timeout.
 func (n *Notifier) Send(event, message string) error {
-	return n.SendWithPriority(event, message, EventPriority(event))
+	return n.SendCtx(context.Background(), event, message)
+}
+
+// SendCtx sends a notification if the event type is enabled.
+// Returns nil if notifications are disabled or the event is not in the allowed list.
+func (n *Notifier) SendCtx(ctx context.Context, event, message string) error {
+	return n.SendWithPriority(ctx, event, message, EventPriority(event))
 }
 
 // SendWithPriority sends a notification with an explicit priority.
 // Returns nil if notifications are disabled or the event is not in the allowed list.
-func (n *Notifier) SendWithPriority(event, message string, priority Priority) error {
+func (n *Notifier) SendWithPriority(ctx context.Context, event, message string, priority Priority) error {
 	if !n.cfg.Enabled {
 		return nil
 	}
@@ -80,7 +88,7 @@ func (n *Notifier) SendWithPriority(event, message string, priority Priority) er
 
 	url := strings.TrimRight(n.cfg.NtfyServer, "/") + "/" + n.cfg.NtfyTopic
 
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(message))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(message))
 	if err != nil {
 		return fmt.Errorf("failed to create ntfy request: %w", err)
 	}

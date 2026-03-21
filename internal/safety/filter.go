@@ -2,6 +2,7 @@ package safety
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -37,12 +38,16 @@ func NewFilter(cfg config.SafetyConfig) *Filter {
 }
 
 // compilePatterns compiles a slice of regex strings into regexp objects.
-// Invalid patterns are silently skipped.
+// Invalid patterns are skipped with a warning log.
 func compilePatterns(patterns []string) []*regexp.Regexp {
 	compiled := make([]*regexp.Regexp, 0, len(patterns))
 	for _, p := range patterns {
 		re, err := regexp.Compile(p)
 		if err != nil {
+			slog.Warn("invalid safety regex pattern, skipping",
+				"pattern", p,
+				"err", err,
+			)
 			continue
 		}
 		compiled = append(compiled, re)

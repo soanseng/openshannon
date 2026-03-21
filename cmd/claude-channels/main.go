@@ -12,6 +12,7 @@ import (
 	"github.com/scipio/claude-channels/internal/claude"
 	"github.com/scipio/claude-channels/internal/config"
 	"github.com/scipio/claude-channels/internal/notify"
+	"github.com/scipio/claude-channels/internal/router"
 	"github.com/scipio/claude-channels/internal/safety"
 	"github.com/scipio/claude-channels/internal/session"
 	"github.com/scipio/claude-channels/internal/telegram"
@@ -55,7 +56,8 @@ func main() {
 	telegram.Version = version
 
 	// Resolve storage dir.
-	storageDir := expandHome(cfg.Storage.Dir)
+	home, _ := os.UserHomeDir()
+	storageDir := router.ExpandHome(cfg.Storage.Dir, home)
 	if err := os.MkdirAll(storageDir, 0o755); err != nil {
 		slog.Error("failed to create storage dir", "dir", storageDir, "err", err)
 		os.Exit(1)
@@ -93,20 +95,5 @@ func main() {
 	}
 
 	slog.Info("claude-channels stopped")
-}
-
-// expandHome expands a leading ~ to the user's home directory.
-func expandHome(path string) string {
-	if path == "~" || len(path) > 1 && path[:2] == "~/" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		if path == "~" {
-			return home
-		}
-		return filepath.Join(home, path[2:])
-	}
-	return path
 }
 

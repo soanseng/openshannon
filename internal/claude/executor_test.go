@@ -14,7 +14,7 @@ func TestMockExecutor(t *testing.T) {
 		CostUSD:   0.05,
 	}
 
-	result, err := mock.Run(context.Background(), "", "/tmp", "say hello")
+	result, err := mock.Run(context.Background(), "test:1", "", "/tmp", "say hello")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestMockExecutor_Error(t *testing.T) {
 		Err: context.DeadlineExceeded,
 	}
 
-	result, err := mock.Run(context.Background(), "", "/tmp", "say hello")
+	result, err := mock.Run(context.Background(), "test:1", "", "/tmp", "say hello")
 	if err != context.DeadlineExceeded {
 		t.Fatalf("got err=%v, want %v", err, context.DeadlineExceeded)
 	}
@@ -59,7 +59,7 @@ func TestMockExecutor_RunWithStream(t *testing.T) {
 		collected = append(collected, text)
 	}
 
-	result, err := mock.RunWithStream(context.Background(), "", "/tmp", "test prompt", cb)
+	result, err := mock.RunWithStream(context.Background(), "test:1", "", "/tmp", "test prompt", cb)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

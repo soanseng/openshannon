@@ -28,6 +28,7 @@ type Bot struct {
 	allowed   map[int64]bool
 	startTime time.Time
 	stats     *Stats
+	ctx       context.Context
 }
 
 // Stats tracks aggregate bot usage counters.
@@ -110,12 +111,14 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 // On context cancellation it performs a graceful shutdown: stops the
 // bot poller and persists sessions.
 func (b *Bot) Start(ctx context.Context) error {
+	b.ctx = ctx
+
 	slog.Info("bot starting",
 		"username", b.bot.Me.Username,
 		"allowed_users", len(b.allowed),
 	)
 
-	_ = b.notifier.Send("daemon_start", fmt.Sprintf("claude-channels started as @%s", b.bot.Me.Username))
+	_ = b.notifier.SendCtx(ctx, "daemon_start", fmt.Sprintf("claude-channels started as @%s", b.bot.Me.Username))
 
 	// Run the blocking poller in a separate goroutine so we can
 	// select on ctx.Done().

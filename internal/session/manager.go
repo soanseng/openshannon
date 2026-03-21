@@ -27,6 +27,7 @@ func NewManager(storageDir string) *Manager {
 
 // Create creates a new session for the given key.
 // It returns an error if a session with that key already exists.
+// The returned *Session is a copy; mutating it does not affect the manager.
 func (m *Manager) Create(key, workdir string) (*Session, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -44,25 +45,34 @@ func (m *Manager) Create(key, workdir string) (*Session, error) {
 		LastActiveAt: now,
 	}
 	m.sessions[key] = sess
-	return sess, nil
+	cp := *sess
+	return &cp, nil
 }
 
-// Get returns the session for the given key, or nil if not found.
+// Get returns a copy of the session for the given key, or nil if not found.
+// The returned *Session is a snapshot; mutating it does not affect the manager.
 func (m *Manager) Get(key string) *Session {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	return m.sessions[key]
+	sess, ok := m.sessions[key]
+	if !ok {
+		return nil
+	}
+	cp := *sess
+	return &cp
 }
 
-// GetOrCreate returns the existing session for the key, or creates a new one
-// with defaultWorkdir if none exists.
+// GetOrCreate returns a copy of the existing session for the key, or creates a
+// new one with defaultWorkdir if none exists.
+// The returned *Session is a snapshot; mutating it does not affect the manager.
 func (m *Manager) GetOrCreate(key, defaultWorkdir string) *Session {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if sess, exists := m.sessions[key]; exists {
-		return sess
+		cp := *sess
+		return &cp
 	}
 
 	now := time.Now()
@@ -74,7 +84,8 @@ func (m *Manager) GetOrCreate(key, defaultWorkdir string) *Session {
 		LastActiveAt: now,
 	}
 	m.sessions[key] = sess
-	return sess
+	cp := *sess
+	return &cp
 }
 
 // Clear resets the Claude session ID but preserves the workdir and keeps the
@@ -138,20 +149,22 @@ func (m *Manager) SetClaudeSession(key, claudeSessionID string) error {
 	return nil
 }
 
-// List returns all sessions. The returned slice is a snapshot; modifying it
-// does not affect the manager's internal state.
+// List returns copies of all sessions. The returned slice is a snapshot;
+// mutating the returned sessions does not affect the manager's internal state.
 func (m *Manager) List() []*Session {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	list := make([]*Session, 0, len(m.sessions))
 	for _, sess := range m.sessions {
-		list = append(list, sess)
+		cp := *sess
+		list = append(list, &cp)
 	}
 	return list
 }
 
 // Save persists all sessions to storageDir/sessions.json.
+// The write is atomic: data is written to a temporary file first, then renamed.
 func (m *Manager) Save() error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -162,8 +175,12 @@ func (m *Manager) Save() error {
 	}
 
 	path := filepath.Join(m.storageDir, "sessions.json")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write %s: %w", path, err)
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", tmpPath, err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("failed to rename %s to %s: %w", tmpPath, path, err)
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -83,6 +84,7 @@ func (b *Bot) handleNew(c tele.Context, key, args string) error {
 		return c.Reply(fmt.Sprintf("Failed to create session: %s", err))
 	}
 
+	_ = b.sessions.Save()
 	return c.Reply(fmt.Sprintf("New session started.\nWorkdir: <code>%s</code>\nKey: <code>%s</code>", EscapeHTML(sess.Workdir), EscapeHTML(sess.Key)), tele.ModeHTML)
 }
 
@@ -93,9 +95,12 @@ func (b *Bot) handleResume(c tele.Context, key, args string) error {
 		return c.Reply("Usage: /resume <session-id>")
 	}
 
-	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
-	sess.ClaudeSession = claudeSessionID
-	sess.LastActiveAt = time.Now()
+	_ = b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+	if err := b.sessions.SetClaudeSession(key, claudeSessionID); err != nil {
+		return c.Reply(fmt.Sprintf("Failed to resume: %s", err))
+	}
+	b.sessions.Touch(key)
+	_ = b.sessions.Save()
 
 	return c.Reply(fmt.Sprintf("Resumed Claude session: <code>%s</code>", EscapeHTML(claudeSessionID)), tele.ModeHTML)
 }
@@ -128,6 +133,7 @@ func (b *Bot) handleClear(c tele.Context, key string) error {
 	if err := b.sessions.Clear(key); err != nil {
 		return c.Reply(fmt.Sprintf("No session to clear: %s", err))
 	}
+	_ = b.sessions.Save()
 	return c.Reply("Session cleared. Next prompt starts a fresh conversation.")
 }
 
@@ -140,6 +146,7 @@ func (b *Bot) handleKill(c tele.Context, key, args string) error {
 	if err := b.sessions.Kill(target); err != nil {
 		return c.Reply(fmt.Sprintf("Failed to kill session: %s", err))
 	}
+	_ = b.sessions.Save()
 	return c.Reply(fmt.Sprintf("Session <code>%s</code> killed.", EscapeHTML(target)), tele.ModeHTML)
 }
 
@@ -151,6 +158,15 @@ func (b *Bot) handleCd(c tele.Context, key, args string) error {
 	}
 	dir = router.ExpandHome(dir, homeDir())
 
+	// Validate that the directory exists.
+	info, err := os.Stat(dir)
+	if err != nil {
+		return c.Reply(fmt.Sprintf("Directory not found: %s", EscapeHTML(dir)), tele.ModeHTML)
+	}
+	if !info.IsDir() {
+		return c.Reply(fmt.Sprintf("Not a directory: %s", EscapeHTML(dir)), tele.ModeHTML)
+	}
+
 	// Safety check: ensure path is not protected.
 	if result := b.filter.CheckPath(dir); !result.Allowed {
 		b.stats.incBlocked()
@@ -159,16 +175,16 @@ func (b *Bot) handleCd(c tele.Context, key, args string) error {
 			"reason", result.Reason,
 			"rule", result.Rule,
 		)
-		_ = b.notifier.Send("safety_block", fmt.Sprintf("cd blocked: %s -> %s", dir, result.Rule))
+		_ = b.notifier.SendCtx(b.ctx, "safety_block", fmt.Sprintf("cd blocked: %s -> %s", dir, result.Rule))
 		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
 	}
 
-	sess := b.sessions.GetOrCreate(key, dir)
+	_ = b.sessions.GetOrCreate(key, dir)
 	if err := b.sessions.SetWorkdir(key, dir); err != nil {
 		return c.Reply(fmt.Sprintf("Failed: %s", err))
 	}
 
-	_ = sess // used to ensure session exists
+	_ = b.sessions.Save()
 	return c.Reply(fmt.Sprintf("Workdir changed to <code>%s</code>", EscapeHTML(dir)), tele.ModeHTML)
 }
 
@@ -204,9 +220,9 @@ func (b *Bot) handleStatus(c tele.Context) error {
 	return c.Reply(sb.String(), tele.ModeHTML)
 }
 
-// handleCancel terminates the currently running Claude process, if any.
+// handleCancel terminates the running Claude process for this session, if any.
 func (b *Bot) handleCancel(c tele.Context, key string) error {
-	if err := b.executor.Cancel(); err != nil {
+	if err := b.executor.Cancel(key); err != nil {
 		return c.Reply(fmt.Sprintf("Cancel failed: %s", err))
 	}
 	return c.Reply("Cancelled running Claude process.")
@@ -227,14 +243,14 @@ func (b *Bot) handleShell(c tele.Context, key, args string) error {
 			"reason", result.Reason,
 			"rule", result.Rule,
 		)
-		_ = b.notifier.Send("safety_block", fmt.Sprintf("shell blocked: %s -> %s", cmdStr, result.Rule))
+		_ = b.notifier.SendCtx(b.ctx, "safety_block", fmt.Sprintf("shell blocked: %s -> %s", cmdStr, result.Rule))
 		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
 	}
 
 	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
 	workdir := router.ExpandHome(sess.Workdir, homeDir())
 
-	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.Safety.ShellTimeout)
+	ctx, cancel := context.WithTimeout(b.ctx, b.cfg.Safety.ShellTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
@@ -342,7 +358,7 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 			"reason", result.Reason,
 			"rule", result.Rule,
 		)
-		_ = b.notifier.Send("safety_block", fmt.Sprintf("prompt blocked: %s", result.Rule))
+		_ = b.notifier.SendCtx(b.ctx, "safety_block", fmt.Sprintf("prompt blocked: %s", result.Rule))
 		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
 	}
 
@@ -359,7 +375,7 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 	}
 
 	// 6. Run Claude with streaming.
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(b.ctx, timeout)
 	defer cancel()
 
 	var (
@@ -400,7 +416,7 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 		lastEdit = now
 	}
 
-	result, err := b.executor.RunWithStream(ctx, sess.ClaudeSession, workdir, prompt, streamCb)
+	result, err := b.executor.RunWithStream(ctx, key, sess.ClaudeSession, workdir, prompt, streamCb)
 
 	b.sessions.Touch(key)
 
@@ -462,7 +478,7 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 
 	// Notify on long tasks.
 	if timeout >= b.cfg.Claude.LongTaskTimeout {
-		_ = b.notifier.Send("long_task_complete", fmt.Sprintf("Long task done (cost: $%.4f)", result.CostUSD))
+		_ = b.notifier.SendCtx(b.ctx, "long_task_complete", fmt.Sprintf("Long task done (cost: $%.4f)", result.CostUSD))
 	}
 
 	return nil

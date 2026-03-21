@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -216,7 +217,7 @@ func TestNotifier_SendWithPriority(t *testing.T) {
 	}
 
 	n := New(cfg)
-	err := n.SendWithPriority("daemon_crash", "Process crashed!", PriorityUrgent)
+	err := n.SendWithPriority(context.Background(), "daemon_crash", "Process crashed!", PriorityUrgent)
 	if err != nil {
 		t.Fatalf("SendWithPriority returned error: %v", err)
 	}

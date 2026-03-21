@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -20,6 +21,9 @@ var (
 
 	// Italic: *text* (but not inside **)
 	reItalic = regexp.MustCompile(`(?:^|[^*])\*([^*]+)\*(?:[^*]|$)`)
+
+	// reItalicSimple matches single-star delimited text for italic conversion.
+	reItalicSimple = regexp.MustCompile(`\*([^*]+)\*`)
 
 	// Heading: # ... or ## ... etc. (at start of line)
 	reHeading = regexp.MustCompile(`(?m)^#{1,6}\s+(.+)$`)
@@ -53,8 +57,8 @@ func MarkdownToHTML(md string) string {
 	var codeBlocks []string
 	result := reCodeBlock.ReplaceAllStringFunc(md, func(match string) string {
 		sub := reCodeBlock.FindStringSubmatch(match)
-		placeholder := "\x00CODEBLOCK" + string(rune('0'+len(codeBlocks))) + "\x00"
-		codeBlocks = append(codeBlocks, "<pre>"+sub[1]+"</pre>")
+		placeholder := fmt.Sprintf("\x00CODEBLOCK%d\x00", len(codeBlocks))
+		codeBlocks = append(codeBlocks, "<pre>"+EscapeHTML(sub[1])+"</pre>")
 		return placeholder
 	})
 
@@ -62,35 +66,38 @@ func MarkdownToHTML(md string) string {
 	var inlineCodes []string
 	result = reInlineCode.ReplaceAllStringFunc(result, func(match string) string {
 		sub := reInlineCode.FindStringSubmatch(match)
-		placeholder := "\x00INLINECODE" + string(rune('0'+len(inlineCodes))) + "\x00"
-		inlineCodes = append(inlineCodes, "<code>"+sub[1]+"</code>")
+		placeholder := fmt.Sprintf("\x00INLINECODE%d\x00", len(inlineCodes))
+		inlineCodes = append(inlineCodes, "<code>"+EscapeHTML(sub[1])+"</code>")
 		return placeholder
 	})
 
-	// 3. Links.
+	// 3. Escape HTML entities in non-code text before applying transformations.
+	result = EscapeHTML(result)
+
+	// 4. Links.
 	result = reLink.ReplaceAllString(result, `<a href="$2">$1</a>`)
 
-	// 4. Headings (before bold, since headings use # not **).
+	// 5. Headings (before bold, since headings use # not **).
 	result = reHeading.ReplaceAllString(result, "<b>$1</b>")
 
-	// 5. Bold (**text**) — must come before italic.
+	// 6. Bold (**text**) — must come before italic.
 	result = reBold.ReplaceAllString(result, "<b>$1</b>")
 
-	// 6. Italic (*text*) — single stars only.
+	// 7. Italic (*text*) — single stars only.
 	result = convertItalic(result)
 
-	// 7. List items.
+	// 8. List items.
 	result = reListItem.ReplaceAllString(result, "• $1")
 
-	// 8. Restore inline code placeholders.
+	// 9. Restore inline code placeholders.
 	for i, code := range inlineCodes {
-		placeholder := "\x00INLINECODE" + string(rune('0'+i)) + "\x00"
+		placeholder := fmt.Sprintf("\x00INLINECODE%d\x00", i)
 		result = strings.ReplaceAll(result, placeholder, code)
 	}
 
-	// 9. Restore code block placeholders.
+	// 10. Restore code block placeholders.
 	for i, block := range codeBlocks {
-		placeholder := "\x00CODEBLOCK" + string(rune('0'+i)) + "\x00"
+		placeholder := fmt.Sprintf("\x00CODEBLOCK%d\x00", i)
 		result = strings.ReplaceAll(result, placeholder, block)
 	}
 
@@ -98,12 +105,9 @@ func MarkdownToHTML(md string) string {
 }
 
 // convertItalic handles *italic* conversion while avoiding **bold** stars.
-// We process the string manually to handle edge cases with adjacent bold tags.
+// Uses the package-level reItalicSimple regex.
 func convertItalic(s string) string {
-	// Simple regex approach: match *word* where * is not preceded/followed by *.
-	// We use a simpler regex that finds single-star delimited text.
-	re := regexp.MustCompile(`\*([^*]+)\*`)
-	return re.ReplaceAllString(s, "<i>$1</i>")
+	return reItalicSimple.ReplaceAllString(s, "<i>$1</i>")
 }
 
 // ChunkMessage splits text into chunks that fit within maxLen.
