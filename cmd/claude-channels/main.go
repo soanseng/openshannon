@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/scipio/claude-channels/internal/claude"
@@ -28,6 +30,11 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
+
+	// Load env file if it exists (for manual runs; systemd uses EnvironmentFile).
+	if home, err := os.UserHomeDir(); err == nil {
+		loadEnvFile(filepath.Join(home, ".config", "claude-channels", "env"))
+	}
 
 	// Resolve config path: flag > default location.
 	cfgPath := *configPath
@@ -95,5 +102,32 @@ func main() {
 	}
 
 	slog.Info("claude-channels stopped")
+}
+
+// loadEnvFile reads a KEY=VALUE file and sets env vars that aren't already set.
+func loadEnvFile(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return // file not found is fine
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		// Only set if not already in environment (explicit env takes precedence).
+		if _, exists := os.LookupEnv(key); !exists {
+			os.Setenv(key, val)
+		}
+	}
 }
 
