@@ -113,6 +113,30 @@ status:
 clean:
 	rm -f $(INSTALL_DIR)/$(BINARY)
 
+# Interactive setup wizard (recommended for first-time users)
+wizard:
+	@bash install.sh
+
+# Setup gog (Google services) separately
+setup-gog:
+	@echo "Setting up gog (Google services)..."
+	@echo "You need gog CLI installed: go install github.com/AarynSmith/gog@latest"
+	@command -v gog >/dev/null 2>&1 || { echo "gog not found. Install it first."; exit 1; }
+	@echo ""
+	@echo "Choose a keyring password (encrypts your Google OAuth token):"
+	@read -p "Password: " GOG_PW; \
+	echo "Google account email:"; \
+	read -p "Email: " GOG_EMAIL; \
+	GOG_KEYRING_PASSWORD="$$GOG_PW" gog auth add "$$GOG_EMAIL"; \
+	echo ""; \
+	echo "Testing..."; \
+	GOG_KEYRING_PASSWORD="$$GOG_PW" gog gmail search "newer_than:1d" --account "$$GOG_EMAIL" --plain --no-input 2>/dev/null | head -3; \
+	echo ""; \
+	echo "Add to $(CONFIG_DIR)/env:"; \
+	echo "  GOG_KEYRING_PASSWORD=$$GOG_PW"; \
+	echo "  GOG_ACCOUNT=$$GOG_EMAIL"; \
+	echo "Then: make restart"
+
 # Update workspace CLAUDE.md from template (overwrites existing)
 update-workspace:
 	@if [ -f $(CONFIG_DIR)/env ]; then \

@@ -56,22 +56,35 @@ Each Telegram Forum Topic maps to an isolated Claude Code session with its own w
 
 Each topic becomes an isolated Claude Code session.
 
-### 3. Install (One-Click Setup)
+### 3. Install
 
 ```bash
 git clone https://github.com/scipio/claude-channels.git ~/infra/claude-channels
 cd ~/infra/claude-channels
 
-# One-click: builds binary, creates config, workspace, and systemd service
-make setup
+# Interactive setup wizard (recommended)
+bash install.sh
+
+# Or non-interactive: make setup
 ```
 
-This creates:
-- `~/.config/claude-channels/config.yaml` — bot configuration
-- `~/.config/claude-channels/env` — secrets (bot token, API keys)
-- `~/OpenShannon/` — default workspace with git init
-- `~/OpenShannon/CLAUDE.md` — Claude instructions (gog reference, behavior guidelines)
+The wizard guides you through:
+
+1. **Build** — compiles the Go binary
+2. **Telegram** — bot token + user ID setup
+3. **Gemini** — (optional) API key for `/imagine` image generation
+4. **Google Services** — (optional) gog CLI authentication for Gmail, Calendar, Drive, Tasks, Contacts
+5. **Config** — writes config files with correct permissions
+6. **Workspace** — creates `~/OpenShannon/` with CLAUDE.md and systemd service
+
+Files created:
+- `~/.config/claude-channels/config.yaml` — bot config (600)
+- `~/.config/claude-channels/env` — secrets (600)
+- `~/OpenShannon/` — default workspace with git
+- `~/OpenShannon/CLAUDE.md` — Claude instructions for Telegram use
 - `~/.config/systemd/user/claude-channels.service` — systemd service
+
+To add Google services later: `make setup-gog`
 
 ### 4. Configure
 
