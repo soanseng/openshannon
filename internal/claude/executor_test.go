@@ -81,13 +81,12 @@ func TestBuildArgs_NewSession(t *testing.T) {
 		Flags: []string{"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"},
 	}
 	exec := NewCLIExecutor(cfg)
-	args := exec.buildArgs("", "/home/user/project", "explain this code")
+	args := exec.buildArgs("", "explain this code")
 
-	// Expected: ["-p", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose", "-w", "/home/user/project", "explain this code"]
+	// workdir is set via cmd.Dir, not via -w flag (which means --worktree in Claude CLI)
 	want := []string{
 		"-p",
 		"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
-		"-w", "/home/user/project",
 		"explain this code",
 	}
 
@@ -106,14 +105,12 @@ func TestBuildArgs_ResumeSession(t *testing.T) {
 		Flags: []string{"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"},
 	}
 	exec := NewCLIExecutor(cfg)
-	args := exec.buildArgs("sess-abc", "/home/user/project", "continue")
+	args := exec.buildArgs("sess-abc", "continue")
 
-	// Expected: ["-p", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose", "--resume", "sess-abc", "-w", "/home/user/project", "continue"]
 	want := []string{
 		"-p",
 		"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
 		"--resume", "sess-abc",
-		"-w", "/home/user/project",
 		"continue",
 	}
 
@@ -130,9 +127,9 @@ func TestBuildArgs_ResumeSession(t *testing.T) {
 func TestBuildArgs_NoFlags(t *testing.T) {
 	cfg := config.ClaudeConfig{}
 	exec := NewCLIExecutor(cfg)
-	args := exec.buildArgs("", "/tmp", "hello")
+	args := exec.buildArgs("", "hello")
 
-	want := []string{"-p", "-w", "/tmp", "hello"}
+	want := []string{"-p", "hello"}
 	if len(args) != len(want) {
 		t.Fatalf("got %d args, want %d: %v", len(args), len(want), args)
 	}

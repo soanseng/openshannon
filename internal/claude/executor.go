@@ -51,13 +51,14 @@ func NewCLIExecutor(cfg config.ClaudeConfig) *CLIExecutor {
 }
 
 // buildArgs constructs the CLI argument list for a Claude invocation.
-func (e *CLIExecutor) buildArgs(sessionID, workdir, prompt string) []string {
+// Note: workdir is set via cmd.Dir, not via -w flag.
+// Claude CLI's -w flag means --worktree (git worktree), not working directory.
+func (e *CLIExecutor) buildArgs(sessionID, prompt string) []string {
 	args := []string{"-p"}
 	args = append(args, e.cfg.Flags...)
 	if sessionID != "" {
 		args = append(args, "--resume", sessionID)
 	}
-	args = append(args, "-w", workdir)
 	args = append(args, prompt)
 	return args
 }
@@ -73,7 +74,7 @@ func (e *CLIExecutor) binary() string {
 // Run invokes the Claude CLI and returns the complete result.
 // All stdout is collected, and the last line is parsed as the result JSON.
 func (e *CLIExecutor) Run(ctx context.Context, key, sessionID, workdir, prompt string) (*Result, error) {
-	args := e.buildArgs(sessionID, workdir, prompt)
+	args := e.buildArgs(sessionID, prompt)
 	cmd := exec.CommandContext(ctx, e.binary(), args...)
 	cmd.Dir = workdir
 
@@ -107,7 +108,7 @@ func (e *CLIExecutor) Run(ctx context.Context, key, sessionID, workdir, prompt s
 // The StreamCallback is called for each text chunk received. The final
 // Result is returned when the process completes.
 func (e *CLIExecutor) RunWithStream(ctx context.Context, key, sessionID, workdir, prompt string, cb StreamCallback) (*Result, error) {
-	args := e.buildArgs(sessionID, workdir, prompt)
+	args := e.buildArgs(sessionID, prompt)
 	cmd := exec.CommandContext(ctx, e.binary(), args...)
 	cmd.Dir = workdir
 
