@@ -13,6 +13,10 @@
 </p>
 
 <p align="center">
+  English | <a href="README.zh-TW.md">繁體中文</a>
+</p>
+
+<p align="center">
   A Go daemon that bridges Telegram to <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>, enabling remote control of a Claude Code agent from your phone. Think of it as your personal coding assistant that you can message from anywhere.
 </p>
 
@@ -73,7 +77,7 @@ Each topic becomes an isolated Claude Code session.
 ### 3. Install
 
 ```bash
-git clone https://github.com/scipio/openshannon.git ~/infra/openshannon
+git clone https://github.com/soanseng/openshannon.git ~/infra/openshannon
 cd ~/infra/openshannon
 
 # Interactive setup wizard (recommended)
@@ -356,10 +360,18 @@ make run
 make build
 ```
 
+## Legal Notice
+
+OpenShannon is an independent open-source project. It is **not** affiliated with, endorsed by, or sponsored by Anthropic.
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) is a product of [Anthropic](https://www.anthropic.com). "Claude" and "Anthropic" are trademarks of Anthropic, PBC.
+- OpenShannon uses Claude Code's official CLI (`claude -p`) in print mode — a publicly available, Anthropic-provided interface for programmatic use.
+- This project does not modify, reverse-engineer, or redistribute Claude Code itself.
+- Users must have their own Anthropic account and comply with Anthropic's [Consumer Terms of Service](https://www.anthropic.com/legal/consumer-terms), [Commercial Terms](https://www.anthropic.com/legal/commercial-terms), and [Usage Policy](https://www.anthropic.com/legal/aup).
+- The `--dangerously-skip-permissions` flag is an official Claude Code feature used at your own risk.
+
+**Users are responsible for ensuring their use of this tool complies with all applicable Anthropic terms and policies.**
+
 ## License
 
 MIT
-
----
-
-*OpenShannon is an independent open-source project. Claude Code is a product of [Anthropic](https://www.anthropic.com). This project is not affiliated with, endorsed by, or sponsored by Anthropic.*
