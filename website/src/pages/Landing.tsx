@@ -3,44 +3,15 @@ import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import FeatureCard from '../components/FeatureCard'
 import CodeBlock from '../components/CodeBlock'
+import { useLanguage } from '../i18n'
 
-const features = [
-  {
-    icon: '\u{1F4AC}',
-    title: 'Chat with Claude',
-    description:
-      'Send prompts from Telegram, get streaming responses. Text, voice, photos, and files — all supported.',
-  },
-  {
-    icon: '\u{1F9F5}',
-    title: 'Session Isolation',
-    description:
-      'Each Forum Topic maps to a separate Claude Code session with its own working directory and context.',
-  },
-  {
-    icon: '\u{1F504}',
-    title: 'Multi-Model',
-    description:
-      'Switch between Haiku, Sonnet, Opus, or Gemini per session with /model. Use the right model for the task.',
-  },
-  {
-    icon: '\u{1F3A8}',
-    title: 'Image Generation',
-    description:
-      'Use /imagine with Claude prompt enhancement + Gemini Flash to generate images directly in chat.',
-  },
-  {
-    icon: '\u{1F4E7}',
-    title: 'Google Services',
-    description:
-      'Access Gmail, Calendar, Drive, Tasks, and Contacts via /gog — all from your Telegram chat.',
-  },
-  {
-    icon: '\u{1F6E1}\uFE0F',
-    title: 'Safety First',
-    description:
-      'Dual-layer protection: Go daemon blocklist filters before Claude sees the prompt, plus Claude Code deny list.',
-  },
+const featureKeys = [
+  { icon: '\u{1F4AC}', key: 'chat' },
+  { icon: '\u{1F9F5}', key: 'sessions' },
+  { icon: '\u{1F504}', key: 'multiModel' },
+  { icon: '\u{1F3A8}', key: 'imageGen' },
+  { icon: '\u{1F4E7}', key: 'google' },
+  { icon: '\u{1F6E1}\uFE0F', key: 'safety' },
 ]
 
 const quickStart = `git clone https://github.com/soanseng/openshannon.git
@@ -48,6 +19,14 @@ cd openshannon && bash install.sh
 make start`
 
 export default function Landing() {
+  const { t } = useLanguage()
+
+  const features = featureKeys.map((f) => ({
+    icon: f.icon,
+    title: t(`features.${f.key}.title`),
+    description: t(`features.${f.key}.desc`),
+  }))
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -61,17 +40,17 @@ export default function Landing() {
             className="w-32 h-32 md:w-40 md:h-40 rounded-2xl mx-auto mb-8 shadow-lg"
           />
           <h1 className="text-4xl md:text-6xl font-bold text-navy tracking-tight mb-4">
-            OpenShannon
+            {t('hero.title')}
           </h1>
           <p className="text-xl md:text-2xl text-navy-light mb-10 max-w-2xl mx-auto leading-relaxed">
-            Your Claude Code agent, one Telegram message away.
+            {t('hero.tagline')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/docs/getting-started"
               className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-white font-medium px-8 py-3 rounded-lg transition-colors no-underline"
             >
-              Get Started
+              {t('hero.getStarted')}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -85,7 +64,7 @@ export default function Landing() {
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
               </svg>
-              GitHub
+              {t('hero.viewGithub')}
             </a>
           </div>
         </div>
@@ -95,7 +74,7 @@ export default function Landing() {
       <section id="features" className="bg-cream-dark/40 border-y border-card-border">
         <div className="max-w-6xl mx-auto px-6 py-20">
           <h2 className="text-3xl font-bold text-center text-navy mb-12">
-            Everything you need
+            {t('features.heading')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((f) => (
@@ -109,10 +88,10 @@ export default function Landing() {
       <section className="max-w-6xl mx-auto px-6 py-20">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-bold text-center text-navy mb-3">
-            Up and running in 3 commands
+            {t('quickStart.heading')}
           </h2>
           <p className="text-center text-navy-light mb-8">
-            Clone, run the install wizard, and start the service.
+            {t('quickStart.subheading')}
           </p>
           <CodeBlock language="bash">{quickStart}</CodeBlock>
         </div>
@@ -122,7 +101,7 @@ export default function Landing() {
       <section className="bg-cream-dark/40 border-y border-card-border">
         <div className="max-w-6xl mx-auto px-6 py-20">
           <h2 className="text-3xl font-bold text-center text-navy mb-12">
-            See it in action
+            {t('screenshots.heading')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
@@ -131,7 +110,7 @@ export default function Landing() {
                 className="bg-cream-dark border border-card-border rounded-xl h-56 flex items-center justify-center"
               >
                 <span className="text-navy-light/50 text-sm font-medium">
-                  Coming Soon
+                  {t('screenshots.comingSoon')}
                 </span>
               </div>
             ))}

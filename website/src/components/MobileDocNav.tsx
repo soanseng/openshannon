@@ -1,19 +1,21 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import { useLanguage } from '../i18n'
 
-const sections = [
-  { path: '/docs/getting-started', label: 'Getting Started' },
-  { path: '/docs/commands', label: 'Commands' },
-  { path: '/docs/configuration', label: 'Configuration' },
-  { path: '/docs/google-services', label: 'Google Services' },
-  { path: '/docs/image-generation', label: 'Image Generation' },
-  { path: '/docs/security', label: 'Security' },
+const sectionKeys = [
+  { path: '/docs/getting-started', key: 'sidebar.gettingStarted' },
+  { path: '/docs/commands', key: 'sidebar.commands' },
+  { path: '/docs/configuration', key: 'sidebar.configuration' },
+  { path: '/docs/google-services', key: 'sidebar.googleServices' },
+  { path: '/docs/image-generation', key: 'sidebar.imageGeneration' },
+  { path: '/docs/security', key: 'sidebar.security' },
 ]
 
 export default function MobileDocNav() {
   const location = useLocation()
   const [open, setOpen] = useState(false)
-  const current = sections.find(s => s.path === location.pathname) ?? sections[0]
+  const { t } = useLanguage()
+  const current = sectionKeys.find(s => s.path === location.pathname) ?? sectionKeys[0]
 
   return (
     <div className="lg:hidden border-b border-card-border bg-cream">
@@ -22,7 +24,7 @@ export default function MobileDocNav() {
           onClick={() => setOpen(!open)}
           className="w-full py-3 flex items-center justify-between text-sm font-medium text-navy"
         >
-          <span>{current.label}</span>
+          <span>{t(current.key)}</span>
           <svg
             className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -32,7 +34,7 @@ export default function MobileDocNav() {
         </button>
         {open && (
           <div className="pb-3 flex flex-col gap-1">
-            {sections.map(({ path, label }) => {
+            {sectionKeys.map(({ path, key }) => {
               const isActive = location.pathname === path ||
                 (path === '/docs/getting-started' && location.pathname === '/docs')
               return (
@@ -46,7 +48,7 @@ export default function MobileDocNav() {
                       : 'text-navy-light hover:bg-cream-dark'
                   }`}
                 >
-                  {label}
+                  {t(key)}
                 </Link>
               )
             })}

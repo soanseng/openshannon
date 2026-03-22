@@ -1,18 +1,16 @@
 import CodeBlock from '../../components/CodeBlock'
+import { useLanguage } from '../../i18n'
 
 export default function Configuration() {
+  const { t } = useLanguage()
+
   return (
     <>
-      <h1>Configuration</h1>
-      <p>
-        OpenShannon uses two configuration files: a YAML config for bot settings and an env
-        file for secrets. Both live under <code>~/.config/openshannon/</code>.
-      </p>
+      <h1>{t('docs.configuration.title')}</h1>
+      <p>{t('docs.configuration.intro')}</p>
 
-      <h2>config.yaml</h2>
-      <p>
-        The main configuration file at <code>~/.config/openshannon/config.yaml</code>:
-      </p>
+      <h2>{t('docs.configuration.configYaml')}</h2>
+      <p>{t('docs.configuration.configYamlDesc')}</p>
       <CodeBlock language="yaml">{`telegram:
   token: "\${TELEGRAM_BOT_TOKEN}"
   allowed_users:
@@ -40,10 +38,8 @@ notify:
     - safety_block
     - long_task_complete`}</CodeBlock>
 
-      <h2>Environment File</h2>
-      <p>
-        Secrets go in <code>~/.config/openshannon/env</code> (file mode 600):
-      </p>
+      <h2>{t('docs.configuration.envFile')}</h2>
+      <p>{t('docs.configuration.envFileDesc')}</p>
       <CodeBlock language="bash">{`TELEGRAM_BOT_TOKEN=7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Optional integrations:
@@ -53,61 +49,56 @@ GOG_KEYRING_PASSWORD=your_gog_keyring_password
 GOG_ACCOUNT=your@gmail.com
 NTFY_TOPIC=claude-agent
 NTFY_TOKEN=tk_xxxxxxxxxxxxx`}</CodeBlock>
-      <p>
-        Set the correct file permissions:
-      </p>
+      <p>{t('docs.configuration.envPermissions')}</p>
       <CodeBlock language="bash">{`chmod 600 ~/.config/openshannon/env`}</CodeBlock>
 
-      <h2>Configuration Reference</h2>
+      <h2>{t('docs.configuration.configRef')}</h2>
       <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
-              <th>Setting</th>
-              <th>Default</th>
-              <th>Description</th>
+              <th>{t('docs.configuration.thSetting')}</th>
+              <th>{t('docs.configuration.thDefault')}</th>
+              <th>{t('docs.configuration.thDescription')}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><code>claude.default_timeout</code></td>
               <td><code>5m</code></td>
-              <td>Max time per Claude invocation</td>
+              <td>{t('docs.configuration.descDefaultTimeout')}</td>
             </tr>
             <tr>
               <td><code>claude.long_task_timeout</code></td>
               <td><code>30m</code></td>
-              <td>Timeout for <code>/long</code> commands</td>
+              <td>{t('docs.configuration.descLongTimeout')}</td>
             </tr>
             <tr>
               <td><code>claude.max_budget_usd</code></td>
               <td><code>10.0</code></td>
-              <td>Cost cap per invocation</td>
+              <td>{t('docs.configuration.descBudget')}</td>
             </tr>
             <tr>
               <td><code>safety.shell_timeout</code></td>
               <td><code>30s</code></td>
-              <td>Max time for <code>/shell</code> commands</td>
+              <td>{t('docs.configuration.descShellTimeout')}</td>
             </tr>
             <tr>
               <td><code>streaming.min_interval</code></td>
               <td><code>1s</code></td>
-              <td>Min time between Telegram message edits</td>
+              <td>{t('docs.configuration.descMinInterval')}</td>
             </tr>
             <tr>
               <td><code>streaming.max_message_length</code></td>
               <td><code>4096</code></td>
-              <td>Telegram message length limit</td>
+              <td>{t('docs.configuration.descMaxLength')}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <h2>systemd Service</h2>
-      <p>
-        The install wizard creates a systemd user service at{' '}
-        <code>~/.config/systemd/user/openshannon.service</code>.
-      </p>
+      <h2>{t('docs.configuration.systemd')}</h2>
+      <p>{t('docs.configuration.systemdDesc')}</p>
       <CodeBlock language="bash">{`# Start the service
 make start
 
@@ -122,24 +113,17 @@ systemctl --user stop openshannon
 
 # Restart
 systemctl --user restart openshannon`}</CodeBlock>
-      <p>
-        Enable lingering so the service runs even when you're not logged in:
-      </p>
+      <p>{t('docs.configuration.systemdLinger')}</p>
       <CodeBlock language="bash">{`loginctl enable-linger $(whoami)`}</CodeBlock>
 
-      <h2>Default Workspace</h2>
-      <p>
-        The install wizard creates <code>~/OpenShannon/</code> as the default workspace. This
-        directory contains a <code>CLAUDE.md</code> file with instructions tailored for Telegram
-        interaction. New sessions that don't specify a workdir will use this path.
-      </p>
+      <h2>{t('docs.configuration.defaultWorkspace')}</h2>
+      <p>{t('docs.configuration.defaultWorkspaceDesc')}</p>
 
-      <h2>ntfy Notifications</h2>
+      <h2>{t('docs.configuration.ntfyNotifications')}</h2>
       <p>
-        OpenShannon can send push notifications via{' '}
-        <a href="https://ntfy.sh" target="_blank" rel="noopener noreferrer">ntfy</a> for
-        daemon events like startup, crashes, safety blocks, and long task completion. Configure
-        the <code>notify</code> section in your config.yaml.
+        {t('docs.configuration.ntfyDescBefore')}{' '}
+        <a href="https://ntfy.sh" target="_blank" rel="noopener noreferrer">ntfy</a>{' '}
+        {t('docs.configuration.ntfyDescAfter')}
       </p>
     </>
   )

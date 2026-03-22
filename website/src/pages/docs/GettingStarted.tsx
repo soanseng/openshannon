@@ -1,47 +1,44 @@
 import CodeBlock from '../../components/CodeBlock'
+import { useLanguage } from '../../i18n'
 
 export default function GettingStarted() {
+  const { t } = useLanguage()
+
   return (
     <>
-      <h1>Getting Started</h1>
-      <p>
-        OpenShannon is a Go daemon that bridges Telegram to Claude Code. It lets you control
-        a Claude Code agent from your phone via Telegram. Each Forum Topic maps to an isolated
-        session with its own working directory and conversation context.
-      </p>
+      <h1>{t('docs.gettingStarted.title')}</h1>
+      <p>{t('docs.gettingStarted.intro')}</p>
 
-      <h2>Prerequisites</h2>
+      <h2>{t('docs.gettingStarted.prerequisites')}</h2>
       <ul>
-        <li><strong>Go 1.22+</strong> &mdash; <a href="https://go.dev/dl/" target="_blank" rel="noopener noreferrer">Download Go</a></li>
-        <li><strong>Claude Code CLI</strong> &mdash; installed and authenticated (<code>claude --version</code>)</li>
-        <li><strong>Telegram Bot</strong> &mdash; create one via <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a></li>
-        <li><strong>Your Telegram User ID</strong> &mdash; get it from <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a></li>
-        <li>(Optional) <strong>Groq API key</strong> for voice note transcription</li>
-        <li>(Optional) <strong>Gemini API key</strong> for image generation</li>
+        <li><strong>{t('docs.gettingStarted.prereqGo')}</strong> &mdash; <a href="https://go.dev/dl/" target="_blank" rel="noopener noreferrer">{t('docs.gettingStarted.prereqGoLink')}</a></li>
+        <li><strong>{t('docs.gettingStarted.prereqClaude')}</strong> &mdash; {t('docs.gettingStarted.prereqClaudeDesc')} (<code>claude --version</code>)</li>
+        <li><strong>{t('docs.gettingStarted.prereqBot')}</strong> &mdash; {t('docs.gettingStarted.prereqBotDesc')} <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a></li>
+        <li><strong>{t('docs.gettingStarted.prereqUserId')}</strong> &mdash; {t('docs.gettingStarted.prereqUserIdDesc')} <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a></li>
+        <li>{t('docs.gettingStarted.optional')} <strong>{t('docs.gettingStarted.prereqGroq')}</strong> {t('docs.gettingStarted.prereqGroqDesc')}</li>
+        <li>{t('docs.gettingStarted.optional')} <strong>{t('docs.gettingStarted.prereqGemini')}</strong> {t('docs.gettingStarted.prereqGeminiDesc')}</li>
       </ul>
 
-      <h2>1. Create a Telegram Bot</h2>
+      <h2>{t('docs.gettingStarted.createBot')}</h2>
       <ol>
-        <li>Open <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a> in Telegram</li>
-        <li>Send <code>/newbot</code> and follow the prompts</li>
-        <li>Copy the bot token (looks like <code>7123456789:AAH...</code>)</li>
-        <li>Send <code>/setprivacy</code>, select your bot, then choose <code>Disable</code> so the bot can read group messages</li>
-        <li>(Optional) Send <code>/setcommands</code> and paste the command list from the README</li>
+        <li>{t('docs.gettingStarted.createBotStep1')}</li>
+        <li>{t('docs.gettingStarted.createBotStep2')}</li>
+        <li>{t('docs.gettingStarted.createBotStep3')}</li>
+        <li>{t('docs.gettingStarted.createBotStep4')}</li>
+        <li>{t('docs.gettingStarted.createBotStep5')}</li>
       </ol>
 
-      <h2>2. Set Up a Forum Group</h2>
-      <p>
-        Forum-enabled groups give you the best experience. Each topic becomes an isolated Claude Code session.
-      </p>
+      <h2>{t('docs.gettingStarted.setupForum')}</h2>
+      <p>{t('docs.gettingStarted.setupForumDesc')}</p>
       <ol>
-        <li>Create a new Telegram Group</li>
-        <li>Go to Group Settings &rarr; Topics &rarr; Enable</li>
-        <li>Add your bot to the group</li>
-        <li>Make the bot an admin (needed for topic access)</li>
-        <li>Create topics for your projects: &ldquo;infra&rdquo;, &ldquo;feedbot&rdquo;, etc.</li>
+        <li>{t('docs.gettingStarted.setupForumStep1')}</li>
+        <li>{t('docs.gettingStarted.setupForumStep2')}</li>
+        <li>{t('docs.gettingStarted.setupForumStep3')}</li>
+        <li>{t('docs.gettingStarted.setupForumStep4')}</li>
+        <li>{t('docs.gettingStarted.setupForumStep5')}</li>
       </ol>
 
-      <h2>3. Install</h2>
+      <h2>{t('docs.gettingStarted.install')}</h2>
       <CodeBlock language="bash">{`git clone https://github.com/soanseng/openshannon.git
 cd openshannon
 
@@ -51,51 +48,43 @@ bash install.sh
 # Or non-interactive:
 make setup`}</CodeBlock>
 
-      <p>The install wizard guides you through:</p>
+      <p>{t('docs.gettingStarted.installWizardIntro')}</p>
       <ol>
-        <li><strong>Build</strong> &mdash; compiles the Go binary</li>
-        <li><strong>Telegram</strong> &mdash; bot token + user ID setup</li>
-        <li><strong>Gemini</strong> &mdash; (optional) API key for <code>/imagine</code></li>
-        <li><strong>Google Services</strong> &mdash; (optional) gog CLI authentication</li>
-        <li><strong>Config</strong> &mdash; writes config files with correct permissions</li>
-        <li><strong>Workspace</strong> &mdash; creates <code>~/OpenShannon/</code> with CLAUDE.md and systemd service</li>
+        <li><strong>{t('docs.gettingStarted.installStep1')}</strong> &mdash; {t('docs.gettingStarted.installStep1Desc')}</li>
+        <li><strong>{t('docs.gettingStarted.installStep2')}</strong> &mdash; {t('docs.gettingStarted.installStep2Desc')}</li>
+        <li><strong>{t('docs.gettingStarted.installStep3')}</strong> &mdash; {t('docs.gettingStarted.installStep3Desc')}</li>
+        <li><strong>{t('docs.gettingStarted.installStep4')}</strong> &mdash; {t('docs.gettingStarted.installStep4Desc')}</li>
+        <li><strong>{t('docs.gettingStarted.installStep5')}</strong> &mdash; {t('docs.gettingStarted.installStep5Desc')}</li>
+        <li><strong>{t('docs.gettingStarted.installStep6')}</strong> &mdash; {t('docs.gettingStarted.installStep6Desc')}</li>
       </ol>
 
-      <h3>Files Created</h3>
+      <h3>{t('docs.gettingStarted.filesCreated')}</h3>
       <ul>
-        <li><code>~/.config/openshannon/config.yaml</code> &mdash; bot config (mode 600)</li>
-        <li><code>~/.config/openshannon/env</code> &mdash; secrets (mode 600)</li>
-        <li><code>~/OpenShannon/</code> &mdash; default workspace with git</li>
-        <li><code>~/OpenShannon/CLAUDE.md</code> &mdash; Claude instructions for Telegram use</li>
-        <li><code>~/.config/systemd/user/openshannon.service</code> &mdash; systemd unit</li>
+        <li><code>~/.config/openshannon/config.yaml</code> &mdash; {t('docs.gettingStarted.fileConfig')}</li>
+        <li><code>~/.config/openshannon/env</code> &mdash; {t('docs.gettingStarted.fileEnv')}</li>
+        <li><code>~/OpenShannon/</code> &mdash; {t('docs.gettingStarted.fileWorkspace')}</li>
+        <li><code>~/OpenShannon/CLAUDE.md</code> &mdash; {t('docs.gettingStarted.fileClaudeMd')}</li>
+        <li><code>~/.config/systemd/user/openshannon.service</code> &mdash; {t('docs.gettingStarted.fileSystemd')}</li>
       </ul>
 
-      <h2>4. Test Run</h2>
+      <h2>{t('docs.gettingStarted.testRun')}</h2>
       <CodeBlock language="bash">{`# Run in foreground to verify
 cd ~/infra/openshannon
 make run`}</CodeBlock>
-      <p>
-        Open Telegram and send <code>/status</code> to your bot. You should see a status message
-        with uptime and version info.
-      </p>
+      <p>{t('docs.gettingStarted.testRunDesc')}</p>
 
-      <h2>5. Deploy as a Service</h2>
+      <h2>{t('docs.gettingStarted.deploy')}</h2>
       <CodeBlock language="bash">{`# Enable and start the systemd user service
 make start
 
 # Verify
 make status
 make logs`}</CodeBlock>
-      <p>
-        Enable lingering so the service keeps running without a login session:
-      </p>
+      <p>{t('docs.gettingStarted.deployLinger')}</p>
       <CodeBlock language="bash">{`loginctl enable-linger $(whoami)`}</CodeBlock>
 
-      <h2>First Message</h2>
-      <p>
-        Once the bot is running, send any text message to your Telegram bot (or to a topic in
-        your Forum group). The message goes straight to Claude Code as a prompt:
-      </p>
+      <h2>{t('docs.gettingStarted.firstMessage')}</h2>
+      <p>{t('docs.gettingStarted.firstMessageDesc')}</p>
       <CodeBlock language="text">{`You: help me find all TODO comments in the codebase
 Bot: (processing...)
 Bot: I found 12 TODO comments across 5 files...`}</CodeBlock>

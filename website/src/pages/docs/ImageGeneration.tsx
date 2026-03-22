@@ -1,93 +1,86 @@
 import CodeBlock from '../../components/CodeBlock'
+import { useLanguage } from '../../i18n'
 
 export default function ImageGeneration() {
+  const { t } = useLanguage()
+
   return (
     <>
-      <h1>Image Generation</h1>
-      <p>
-        OpenShannon uses Claude to enhance your prompt, then sends it to Gemini 3.1 Flash to
-        generate images. The result is sent directly back to your Telegram chat.
-      </p>
+      <h1>{t('docs.imageGeneration.title')}</h1>
+      <p>{t('docs.imageGeneration.intro')}</p>
 
-      <h2>How It Works</h2>
+      <h2>{t('docs.imageGeneration.howItWorks')}</h2>
       <ol>
-        <li>You send <code>/imagine a cat wearing a space helmet</code></li>
-        <li>Claude enhances your prompt with more detail and artistic direction</li>
-        <li>The enhanced prompt is sent to Gemini Flash for image generation</li>
-        <li>The generated image is sent back to your Telegram chat</li>
+        <li>{t('docs.imageGeneration.step1')}</li>
+        <li>{t('docs.imageGeneration.step2')}</li>
+        <li>{t('docs.imageGeneration.step3')}</li>
+        <li>{t('docs.imageGeneration.step4')}</li>
       </ol>
 
-      <h2>Setup</h2>
+      <h2>{t('docs.imageGeneration.setup')}</h2>
 
-      <h3>1. Get a Gemini API Key</h3>
+      <h3>{t('docs.imageGeneration.getApiKey')}</h3>
       <p>
-        Get your API key from{' '}
+        {t('docs.imageGeneration.getApiKeyDesc')}{' '}
         <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
-          Google AI Studio
-        </a>.
+          {t('docs.imageGeneration.getApiKeyLink')}
+        </a>
+        .
       </p>
 
-      <h3>2. Add to Environment</h3>
-      <p>
-        Add the key to your <code>~/.config/openshannon/env</code> file:
-      </p>
+      <h3>{t('docs.imageGeneration.addToEnv')}</h3>
+      <p>{t('docs.imageGeneration.addToEnvDesc')}</p>
       <CodeBlock language="bash">{`GEMINI_API_KEY=your_google_ai_api_key`}</CodeBlock>
 
-      <h3>3. Restart the Service</h3>
+      <h3>{t('docs.imageGeneration.restart')}</h3>
       <CodeBlock language="bash">{`systemctl --user restart openshannon`}</CodeBlock>
 
-      <h2>Usage</h2>
+      <h2>{t('docs.imageGeneration.usage')}</h2>
       <CodeBlock language="text">{`/imagine a cat wearing a space helmet painting the Mona Lisa
 /imagine minimalist logo for a coffee shop called "Bean There"
 /imagine photorealistic sunset over a cyberpunk Tokyo`}</CodeBlock>
-      <p>
-        Just describe what you want in natural language. Claude will handle turning your
-        description into a detailed image generation prompt.
-      </p>
+      <p>{t('docs.imageGeneration.usageDesc')}</p>
 
-      <h2>Model Selection for Image Generation</h2>
-      <p>
-        To use Gemini models for text chat as well (not just image generation), you can switch
-        your session model:
-      </p>
+      <h2>{t('docs.imageGeneration.modelSelection')}</h2>
+      <p>{t('docs.imageGeneration.modelSelectionDesc')}</p>
       <CodeBlock language="text">{`/model gemini       # Gemini 2.5 Flash
 /model gemini-pro   # Gemini 2.5 Pro`}</CodeBlock>
 
-      <h2>Available Models</h2>
+      <h2>{t('docs.imageGeneration.availableModels')}</h2>
       <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
-              <th>Shortcut</th>
-              <th>Model</th>
-              <th>Best For</th>
+              <th>{t('docs.imageGeneration.thShortcut')}</th>
+              <th>{t('docs.imageGeneration.thModel')}</th>
+              <th>{t('docs.imageGeneration.thBestFor')}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><code>haiku</code></td>
               <td>Claude Haiku 4.5</td>
-              <td>Fast, cheap tasks</td>
+              <td>{t('docs.imageGeneration.haikuBestFor')}</td>
             </tr>
             <tr>
               <td><code>sonnet</code></td>
               <td>Claude Sonnet 4.6</td>
-              <td>Balanced performance</td>
+              <td>{t('docs.imageGeneration.sonnetBestFor')}</td>
             </tr>
             <tr>
               <td><code>opus</code></td>
               <td>Claude Opus 4.6</td>
-              <td>Most capable reasoning</td>
+              <td>{t('docs.imageGeneration.opusBestFor')}</td>
             </tr>
             <tr>
               <td><code>gemini</code></td>
               <td>Gemini 2.5 Flash</td>
-              <td>Fast multimodal</td>
+              <td>{t('docs.imageGeneration.geminiBestFor')}</td>
             </tr>
             <tr>
               <td><code>gemini-pro</code></td>
               <td>Gemini 2.5 Pro</td>
-              <td>Advanced multimodal</td>
+              <td>{t('docs.imageGeneration.geminiProBestFor')}</td>
             </tr>
           </tbody>
         </table>
