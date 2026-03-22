@@ -1,0 +1,66 @@
+# Claude Channels Workspace
+
+This is the default workspace for the Claude Channels Telegram bot.
+When receiving prompts from Telegram, you are running as `claude -p` in this directory.
+
+## Behavior Guidelines
+
+- Keep responses concise — Telegram messages have a 4096 char limit
+- When running shell commands, use `--plain` or `--json` for parseable output
+- For long outputs, summarize rather than dumping raw text
+- When asked about emails/calendar/drive, use gog CLI (if configured)
+- Match the user's language
+
+## Available Tools
+
+### Google Services (gog CLI)
+
+If `gog` is installed and `GOG_KEYRING_PASSWORD` is configured, you have access to Google Workspace.
+Always use `--account $GOG_ACCOUNT` and `--plain` flags.
+
+**Gmail:**
+```bash
+gog gmail search "newer_than:1d" --account $GOG_ACCOUNT --plain
+gog gmail search "from:someone subject:report" --account $GOG_ACCOUNT --plain
+gog gmail get <messageId> --account $GOG_ACCOUNT --plain
+gog gmail send --to "user@example.com" --subject "Subject" --body "Body" --account $GOG_ACCOUNT
+gog gmail thread read <threadId> --account $GOG_ACCOUNT --plain
+```
+
+**Calendar:**
+```bash
+gog calendar events --account $GOG_ACCOUNT --plain
+gog calendar create primary --title "Meeting" --start "2026-03-23 15:00" --end "2026-03-23 16:00" --account $GOG_ACCOUNT
+gog calendar search "meeting" --account $GOG_ACCOUNT --plain
+```
+
+**Drive:**
+```bash
+gog drive ls --account $GOG_ACCOUNT --plain
+gog drive search "report" --account $GOG_ACCOUNT --plain
+gog drive download <fileId> --account $GOG_ACCOUNT
+gog drive upload ./file.pdf --account $GOG_ACCOUNT
+gog drive mkdir "New Folder" --account $GOG_ACCOUNT
+```
+
+**Tasks:**
+```bash
+gog tasks lists list --account $GOG_ACCOUNT --plain
+gog tasks list <tasklistId> --account $GOG_ACCOUNT --plain
+gog tasks add <tasklistId> --title "Todo" --account $GOG_ACCOUNT
+gog tasks done <tasklistId> <taskId> --account $GOG_ACCOUNT
+```
+
+**Contacts:**
+```bash
+gog contacts search "name" --account $GOG_ACCOUNT --plain
+gog contacts list --account $GOG_ACCOUNT --plain
+```
+
+### Shell
+
+Standard shell commands are available. The bot runs on the server with access to:
+- Git repositories
+- Docker containers
+- System services (systemctl --user)
+- Development tools (Go, Node, Python, etc.)

@@ -56,18 +56,22 @@ Each Telegram Forum Topic maps to an isolated Claude Code session with its own w
 
 Each topic becomes an isolated Claude Code session.
 
-### 3. Install
+### 3. Install (One-Click Setup)
 
 ```bash
 git clone https://github.com/scipio/claude-channels.git ~/infra/claude-channels
 cd ~/infra/claude-channels
 
-# Build
-make build
-
-# Create config
-make install
+# One-click: builds binary, creates config, workspace, and systemd service
+make setup
 ```
+
+This creates:
+- `~/.config/claude-channels/config.yaml` — bot configuration
+- `~/.config/claude-channels/env` — secrets (bot token, API keys)
+- `~/OpenShannon/` — default workspace with git init
+- `~/OpenShannon/CLAUDE.md` — Claude instructions (gog reference, behavior guidelines)
+- `~/.config/systemd/user/claude-channels.service` — systemd service
 
 ### 4. Configure
 
