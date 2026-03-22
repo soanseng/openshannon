@@ -509,7 +509,7 @@ func (b *Bot) handleGog(c tele.Context, key, args string) error {
 	// Build gog command with account flag
 	account := os.Getenv("GOG_ACCOUNT")
 	if account == "" {
-		account = "your@gmail.com"
+		return c.Reply("GOG_ACCOUNT not configured. Set it in your env file.")
 	}
 
 	// Inject --account if not already present

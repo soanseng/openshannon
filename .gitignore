@@ -4,11 +4,15 @@ openshannon
 
 # Config with secrets
 env
+*.env
 config.yaml
 !config.example.yaml
 
 # Sessions state
 sessions.json
+
+# Claude Code local settings (may contain MCP credentials)
+.claude/settings.local.json
 
 # Go
 vendor/
@@ -17,3 +21,6 @@ vendor/
 /tmp/
 *.ogg
 *.wav
+
+# OS
+.DS_Store
