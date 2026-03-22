@@ -104,6 +104,23 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 
 	teleBot.Handle(tele.OnText, b.handleMessage)
 
+	// Register command menu with Telegram (the "/" autocomplete list).
+	if err := teleBot.SetCommands([]tele.Command{
+		{Text: "new", Description: "Create new session [workdir]"},
+		{Text: "resume", Description: "Resume idle session [id]"},
+		{Text: "sessions", Description: "List all sessions"},
+		{Text: "clear", Description: "Clear Claude context, keep workdir"},
+		{Text: "kill", Description: "Kill session completely [id]"},
+		{Text: "cd", Description: "Change working directory"},
+		{Text: "status", Description: "Daemon status and stats"},
+		{Text: "cancel", Description: "Cancel running command"},
+		{Text: "shell", Description: "Run shell command directly"},
+		{Text: "long", Description: "Run with extended 30m timeout"},
+		{Text: "help", Description: "Show all commands"},
+	}); err != nil {
+		slog.Warn("failed to register bot commands menu", "err", err)
+	}
+
 	return b, nil
 }
 
