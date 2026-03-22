@@ -14,6 +14,11 @@ telegram:
   # Long polling timeout
   long_poll_timeout: 30s
 
+# ── Gemini (optional, for /imagine image generation) ──
+gemini:
+  api_key: "${GEMINI_API_KEY}"    # Google AI API key
+  model: "gemini-2.5-flash"       # default model for /model gemini
+
 # ── Claude Code ───────────────────────────────────────
 claude:
   binary: claude

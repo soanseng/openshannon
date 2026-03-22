@@ -67,6 +67,8 @@ func (b *Bot) handleMessage(c tele.Context) error {
 		return b.handleLong(c, key, args)
 	case "model":
 		return b.handleModel(c, key, args)
+	case "imagine":
+		return b.handleImagine(c, key, args)
 	case "help":
 		return b.handleHelp(c)
 	default:
@@ -372,10 +374,11 @@ func (b *Bot) handleHelp(c tele.Context) error {
 <b>Interaction</b>
 /shell &lt;command&gt; — Run shell command
 /long &lt;prompt&gt; — Prompt with long timeout (30m)
+/imagine &lt;description&gt; — Generate image (Gemini)
 
 <b>Info</b>
 /status — Show bot status and stats
-/model [haiku|sonnet|opus] — Switch model
+/model [haiku|sonnet|opus|gemini] — Switch model
 /help — This message
 
 <b>Prompting</b>
@@ -385,10 +388,24 @@ Send any text without a / prefix to prompt Claude.`
 }
 
 // validModels maps short names to Claude model IDs.
+// validModels maps short names to model identifiers.
+// Prefix "gemini:" means use Gemini executor; otherwise use Claude CLI.
 var validModels = map[string]string{
-	"haiku":  "claude-haiku-4-5-20251001",
-	"sonnet": "claude-sonnet-4-6",
-	"opus":   "claude-opus-4-6",
+	"haiku":      "claude-haiku-4-5-20251001",
+	"sonnet":     "claude-sonnet-4-6",
+	"opus":       "claude-opus-4-6",
+	"gemini":     "gemini:gemini-2.5-flash",
+	"gemini-pro": "gemini:gemini-2.5-pro",
+}
+
+// IsGeminiModel returns true if the model string indicates a Gemini model.
+func IsGeminiModel(model string) bool {
+	return strings.HasPrefix(model, "gemini:")
+}
+
+// GeminiModelID extracts the Gemini model ID from the prefixed string.
+func GeminiModelID(model string) string {
+	return strings.TrimPrefix(model, "gemini:")
 }
 
 // handleModel switches the model for the current session.
@@ -400,9 +417,20 @@ func (b *Bot) handleModel(c tele.Context, key, args string) error {
 		sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
 		current := sess.Model
 		if current == "" {
-			current = "default (from config)"
+			current = "default (Claude from config)"
 		}
-		lines := fmt.Sprintf("Current model: <b>%s</b>\n\nAvailable:\n/model haiku — Fast, cheap\n/model sonnet — Balanced\n/model opus — Most capable\n/model default — Use config default", current)
+		lines := fmt.Sprintf(`Current model: <b>%s</b>
+
+<b>Claude</b>
+/model haiku — Fast, cheap
+/model sonnet — Balanced
+/model opus — Most capable
+
+<b>Gemini</b>
+/model gemini — Gemini 2.5 Flash
+/model gemini-pro — Gemini 2.5 Pro
+
+/model default — Reset to config default`, current)
 		return c.Reply(lines, tele.ModeHTML)
 	}
 
@@ -411,13 +439,18 @@ func (b *Bot) handleModel(c tele.Context, key, args string) error {
 		sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
 		_ = b.sessions.SetModel(sess.Key, "")
 		_ = b.sessions.Save()
-		return c.Reply("Model reset to config default.")
+		return c.Reply("Model reset to config default (Claude).")
 	}
 
 	// Set model
 	modelID, ok := validModels[model]
 	if !ok {
-		return c.Reply(fmt.Sprintf("Unknown model: %s\nUse: haiku, sonnet, opus, or default", model))
+		return c.Reply(fmt.Sprintf("Unknown model: %s\nUse: haiku, sonnet, opus, gemini, gemini-pro, or default", model))
+	}
+
+	// Check Gemini API key is configured
+	if IsGeminiModel(modelID) && b.cfg.Gemini.APIKey == "" {
+		return c.Reply("Gemini API key not configured. Set gemini.api_key in config.yaml.")
 	}
 
 	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
@@ -427,6 +460,92 @@ func (b *Bot) handleModel(c tele.Context, key, args string) error {
 	}
 	_ = b.sessions.Save()
 	return c.Reply(fmt.Sprintf("Model switched to <b>%s</b> (%s)", model, modelID), tele.ModeHTML)
+}
+
+// handleImagine generates an image using Claude (prompt enhancement) + Gemini (image gen).
+func (b *Bot) handleImagine(c tele.Context, key, args string) error {
+	prompt := strings.TrimSpace(args)
+	if prompt == "" {
+		return c.Reply("Usage: /imagine <description>\nExample: /imagine a cat wearing a space helmet")
+	}
+
+	if b.gemini == nil {
+		return c.Reply("Gemini not configured. Set gemini.api_key in config.yaml.")
+	}
+
+	msg := c.Message()
+	b.react(msg, "🎨")
+
+	placeholder, err := b.sendMessage(msg.Chat, "Enhancing prompt with Claude...", msg.ThreadID, "")
+	if err != nil {
+		return fmt.Errorf("failed to send placeholder: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(b.ctx, 3*time.Minute)
+	defer cancel()
+
+	// Step 1: Use Claude to enhance the image prompt
+	enhancePrompt := fmt.Sprintf(
+		`You are an expert image prompt engineer. Enhance this image description into a detailed, vivid prompt for an AI image generator.
+Keep it under 200 words. Output ONLY the enhanced prompt, nothing else.
+
+User request: %s`, prompt)
+
+	enhancedPrompt := prompt // fallback to original if Claude fails
+	result, err := b.executor.Run(ctx, key+":imagine", "", "/tmp", enhancePrompt, claude.RunOpts{Model: "claude-haiku-4-5-20251001"})
+	if err == nil && result.Text != "" {
+		enhancedPrompt = result.Text
+		slog.Info("prompt enhanced", "original", prompt, "enhanced", enhancedPrompt)
+	} else {
+		slog.Warn("prompt enhancement failed, using original", "err", err)
+	}
+
+	// Step 2: Generate image with Gemini
+	_, _ = b.editMessage(placeholder, fmt.Sprintf("Generating image...\n\n<i>%s</i>", EscapeHTML(enhancedPrompt)), tele.ModeHTML)
+
+	text, imagePath, genErr := b.gemini.GenerateImage(ctx, enhancedPrompt, "")
+	if genErr != nil {
+		b.react(msg, "❌")
+		slog.Error("gemini image generation failed", "err", genErr)
+		_, _ = b.editMessage(placeholder, "Image generation failed. Check server logs.", "")
+		return nil
+	}
+
+	// Delete placeholder
+	_ = b.bot.Delete(placeholder)
+
+	// Send image if we got one
+	if imagePath != "" {
+		photo := &tele.Photo{File: tele.FromDisk(imagePath)}
+		caption := prompt
+		if text != "" {
+			caption = fmt.Sprintf("%s\n\n%s", prompt, text)
+		}
+		if len(caption) > 1024 {
+			caption = caption[:1024]
+		}
+		photo.Caption = caption
+		_, sendErr := b.bot.Send(msg.Chat, photo, &tele.SendOptions{ThreadID: msg.ThreadID})
+		if sendErr != nil {
+			slog.Error("failed to send generated image", "err", sendErr)
+			if text != "" {
+				_, _ = b.sendMessage(msg.Chat, text, msg.ThreadID, "")
+			}
+		}
+		_ = os.Remove(imagePath)
+		b.react(msg, "✅")
+		return nil
+	}
+
+	// Text only (no image)
+	if text != "" {
+		_, _ = b.sendMessage(msg.Chat, text, msg.ThreadID, "")
+		b.react(msg, "✅")
+		return nil
+	}
+
+	_, _ = b.sendMessage(msg.Chat, "(Gemini returned empty response)", msg.ThreadID, "")
+	return nil
 }
 
 // handlePrompt sends the user's text to Claude and streams the response.
@@ -517,8 +636,14 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 		lastEdit = now
 	}
 
+	// Route to Gemini or Claude depending on session model.
+	var executor claude.Executor = b.executor
+	if IsGeminiModel(sess.Model) && b.gemini != nil {
+		executor = b.gemini
+	}
+
 	opts := claude.RunOpts{Model: sess.Model}
-	result, err := b.executor.RunWithStream(ctx, key, sess.ClaudeSession, workdir, prompt, opts, streamCb)
+	result, err := executor.RunWithStream(ctx, key, sess.ClaudeSession, workdir, prompt, opts, streamCb)
 
 	b.sessions.Touch(key)
 

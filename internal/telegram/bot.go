@@ -12,6 +12,7 @@ import (
 
 	"github.com/scipio/claude-channels/internal/claude"
 	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/claude-channels/internal/gemini"
 	"github.com/scipio/claude-channels/internal/notify"
 	"github.com/scipio/claude-channels/internal/safety"
 	"github.com/scipio/claude-channels/internal/session"
@@ -23,6 +24,7 @@ type Bot struct {
 	cfg       *config.Config
 	sessions  *session.Manager
 	executor  claude.Executor
+	gemini    *gemini.Executor // optional, for image generation and Gemini models
 	filter    *safety.Filter
 	notifier  *notify.Notifier
 	allowed   map[int64]bool
@@ -103,6 +105,12 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 		stats:     &Stats{},
 	}
 
+	// Initialize Gemini executor if API key is configured.
+	if cfg.Gemini.APIKey != "" {
+		b.gemini = gemini.NewExecutor(cfg.Gemini.APIKey, cfg.Gemini.Model)
+		slog.Info("gemini executor initialized", "model", cfg.Gemini.Model)
+	}
+
 	teleBot.Handle(tele.OnText, b.handleMessage)
 
 	// Register command menu with Telegram (the "/" autocomplete list).
@@ -117,7 +125,8 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 		{Text: "cancel", Description: "Cancel running command"},
 		{Text: "shell", Description: "Run shell command directly"},
 		{Text: "long", Description: "Run with extended 30m timeout"},
-		{Text: "model", Description: "Switch model (haiku/sonnet/opus)"},
+		{Text: "imagine", Description: "Generate image with Gemini"},
+		{Text: "model", Description: "Switch model (haiku/sonnet/opus/gemini)"},
 		{Text: "help", Description: "Show all commands"},
 	}); err != nil {
 		slog.Warn("failed to register bot commands menu", "err", err)

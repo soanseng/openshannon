@@ -13,11 +13,18 @@ import (
 type Config struct {
 	Telegram  TelegramConfig `yaml:"telegram"`
 	Claude    ClaudeConfig   `yaml:"claude"`
+	Gemini    GeminiConfig   `yaml:"gemini"`
 	STT       STTConfig      `yaml:"stt"`
 	Streaming StreamConfig   `yaml:"streaming"`
 	Safety    SafetyConfig   `yaml:"safety"`
 	Notify    NotifyConfig   `yaml:"notify"`
 	Storage   StorageConfig  `yaml:"storage"`
+}
+
+// GeminiConfig holds Google Gemini API settings.
+type GeminiConfig struct {
+	APIKey string `yaml:"api_key"`
+	Model  string `yaml:"model"`
 }
 
 // TelegramConfig holds Telegram bot settings.
