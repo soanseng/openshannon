@@ -248,6 +248,14 @@ func mergeConfig(base, overlay *Config, raw map[string]interface{}) {
 		base.Safety.ProtectedPaths = overlay.Safety.ProtectedPaths
 	}
 
+	// Gemini
+	if overlay.Gemini.APIKey != "" {
+		base.Gemini.APIKey = overlay.Gemini.APIKey
+	}
+	if overlay.Gemini.Model != "" {
+		base.Gemini.Model = overlay.Gemini.Model
+	}
+
 	// Notify -- uses raw map to correctly handle bool zero-value
 	if notifyRaw, ok := rawSection(raw, "notify"); ok {
 		if _, ok := notifyRaw["enabled"]; ok {
