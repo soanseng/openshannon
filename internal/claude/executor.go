@@ -59,6 +59,10 @@ func (e *CLIExecutor) buildArgs(sessionID, prompt string) []string {
 	if sessionID != "" {
 		args = append(args, "--resume", sessionID)
 	}
+	// Safety net: limit turns when a budget is configured.
+	if e.cfg.MaxBudgetUSD > 0 {
+		args = append(args, "--max-turns", "50")
+	}
 	args = append(args, prompt)
 	return args
 }
@@ -101,6 +105,11 @@ func (e *CLIExecutor) Run(ctx context.Context, key, sessionID, workdir, prompt s
 		return nil, fmt.Errorf("failed to parse claude output: %w", err)
 	}
 	result.ExitCode = cmd.ProcessState.ExitCode()
+
+	if result != nil && e.cfg.MaxBudgetUSD > 0 && result.CostUSD > e.cfg.MaxBudgetUSD {
+		slog.Warn("cost exceeded budget", "cost", result.CostUSD, "budget", e.cfg.MaxBudgetUSD)
+	}
+
 	return result, nil
 }
 
@@ -162,6 +171,11 @@ func (e *CLIExecutor) RunWithStream(ctx context.Context, key, sessionID, workdir
 		return nil, fmt.Errorf("no result event received from claude CLI")
 	}
 	finalResult.ExitCode = cmd.ProcessState.ExitCode()
+
+	if finalResult != nil && e.cfg.MaxBudgetUSD > 0 && finalResult.CostUSD > e.cfg.MaxBudgetUSD {
+		slog.Warn("cost exceeded budget", "cost", finalResult.CostUSD, "budget", e.cfg.MaxBudgetUSD)
+	}
+
 	return finalResult, nil
 }
 

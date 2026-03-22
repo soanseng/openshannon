@@ -29,6 +29,7 @@ type Bot struct {
 	startTime time.Time
 	stats     *Stats
 	ctx       context.Context
+	inflight  sync.Map // tracks in-flight prompt executions per key
 }
 
 // Stats tracks aggregate bot usage counters.

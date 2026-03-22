@@ -78,7 +78,8 @@ func TestMockExecutor_RunWithStream(t *testing.T) {
 
 func TestBuildArgs_NewSession(t *testing.T) {
 	cfg := config.ClaudeConfig{
-		Flags: []string{"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"},
+		Flags:        []string{"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"},
+		MaxBudgetUSD: 10.0,
 	}
 	exec := NewCLIExecutor(cfg)
 	args := exec.buildArgs("", "explain this code")
@@ -87,6 +88,7 @@ func TestBuildArgs_NewSession(t *testing.T) {
 	want := []string{
 		"-p",
 		"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
+		"--max-turns", "50",
 		"explain this code",
 	}
 
@@ -102,7 +104,8 @@ func TestBuildArgs_NewSession(t *testing.T) {
 
 func TestBuildArgs_ResumeSession(t *testing.T) {
 	cfg := config.ClaudeConfig{
-		Flags: []string{"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"},
+		Flags:        []string{"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"},
+		MaxBudgetUSD: 10.0,
 	}
 	exec := NewCLIExecutor(cfg)
 	args := exec.buildArgs("sess-abc", "continue")
@@ -111,6 +114,7 @@ func TestBuildArgs_ResumeSession(t *testing.T) {
 		"-p",
 		"--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose",
 		"--resume", "sess-abc",
+		"--max-turns", "50",
 		"continue",
 	}
 

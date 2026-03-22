@@ -22,6 +22,11 @@ func testConfig() config.SafetyConfig {
 			`(?i)git\s+push\s+--force`,
 			`(?i)git\s+reset\s+--hard`,
 			`(?i)docker\s+rm\s+-f`,
+			`(?i)rm\s+.*-[a-z]*r[a-z]*f|rm\s+-rf`,
+			`(?i)\bdd\b.*of=`,
+			`(?i)chmod\s+0+\s`,
+			`(?i)mkfs`,
+			`(?i)>\s*/dev/(sd|nvme|hd)`,
 		},
 		ProtectedPaths: []string{
 			`/etc/`,
@@ -81,6 +86,17 @@ func TestFilter_BlockedShell(t *testing.T) {
 		{"git push --force", "git push --force origin main", false},
 		{"git reset --hard", "git reset --hard HEAD~1", false},
 		{"docker rm -f", "docker rm -f container", false},
+		{"rm -rf", "rm -rf /tmp/stuff", false},
+		{"rm -r -f separate", "rm -r -f somedir", true}, // separate flags not caught by combined pattern
+		{"rm recursive flag combo", "rm -rvf somedir", false},
+		{"dd of=/dev/sda", "dd if=/dev/zero of=/dev/sda", false},
+		{"chmod 000", "chmod 000 /etc/passwd", false},
+		{"mkfs.ext4", "mkfs.ext4 /dev/sda1", false},
+		{"redirect to /dev/sda", "> /dev/sda", false},
+		{"redirect to /dev/nvme0n1", "> /dev/nvme0n1p1", false},
+		{"safe rm single file", "rm file.txt", true},
+		{"safe dd no of", "dd if=/dev/zero count=1", true},
+		{"safe chmod normal", "chmod 644 file.txt", true},
 	}
 
 	for _, tt := range tests {

@@ -65,8 +65,13 @@ func main() {
 	// Resolve storage dir.
 	home, _ := os.UserHomeDir()
 	storageDir := router.ExpandHome(cfg.Storage.Dir, home)
-	if err := os.MkdirAll(storageDir, 0o755); err != nil {
+	if err := os.MkdirAll(storageDir, 0o700); err != nil {
 		slog.Error("failed to create storage dir", "dir", storageDir, "err", err)
+		os.Exit(1)
+	}
+	// MED-3: Ensure the directory has restricted permissions even if it already existed.
+	if err := os.Chmod(storageDir, 0o700); err != nil {
+		slog.Error("failed to chmod storage dir", "dir", storageDir, "err", err)
 		os.Exit(1)
 	}
 

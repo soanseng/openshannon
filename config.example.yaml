@@ -58,6 +58,11 @@ safety:
     - "(?i)git\\s+push\\s+--force"
     - "(?i)git\\s+reset\\s+--hard"
     - "(?i)docker\\s+rm\\s+-f"
+    - "(?i)rm\\s+.*-[a-z]*r[a-z]*f|rm\\s+-rf"
+    - "(?i)\\bdd\\b.*of="
+    - "(?i)chmod\\s+0+\\s"
+    - "(?i)mkfs"
+    - "(?i)>\\s*/dev/(sd|nvme|hd)"
   protected_paths:
     - "/etc/"
     - "/boot/"

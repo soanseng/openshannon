@@ -74,8 +74,16 @@ func MarkdownToHTML(md string) string {
 	// 3. Escape HTML entities in non-code text before applying transformations.
 	result = EscapeHTML(result)
 
-	// 4. Links.
-	result = reLink.ReplaceAllString(result, `<a href="$2">$1</a>`)
+	// 4. Links — escape quotes in URLs to prevent HTML injection.
+	result = reLink.ReplaceAllStringFunc(result, func(match string) string {
+		sub := reLink.FindStringSubmatch(match)
+		if len(sub) < 3 {
+			return match
+		}
+		text := sub[1]
+		url := strings.ReplaceAll(sub[2], `"`, "%22")
+		return fmt.Sprintf(`<a href="%s">%s</a>`, url, text)
+	})
 
 	// 5. Headings (before bold, since headings use # not **).
 	result = reHeading.ReplaceAllString(result, "<b>$1</b>")

@@ -7,14 +7,20 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	tele "gopkg.in/telebot.v4"
 
 	"github.com/scipio/claude-channels/internal/router"
 )
+
+// sessionIDRe validates Claude session IDs (UUID-like or hex strings).
+var sessionIDRe = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
 
 // handleMessage is the main entry point registered with telebot for all text messages.
 func (b *Bot) handleMessage(c tele.Context) error {
@@ -74,14 +80,31 @@ func (b *Bot) handleNew(c tele.Context, key, args string) error {
 	if workdir == "" {
 		workdir = b.cfg.Claude.DefaultWorkdir
 	}
-	workdir = router.ExpandHome(workdir, homeDir())
+	workdir = filepath.Clean(router.ExpandHome(workdir, homeDir()))
+	// Try to resolve symlinks for extra safety.
+	if resolved, err := filepath.EvalSymlinks(workdir); err == nil {
+		workdir = resolved
+	}
+
+	// Safety check: ensure path is not protected.
+	if result := b.filter.CheckPath(workdir); !result.Allowed {
+		b.stats.incBlocked()
+		slog.Warn("new workdir blocked by safety filter",
+			"dir", workdir,
+			"reason", result.Reason,
+			"rule", result.Rule,
+		)
+		_ = b.notifier.SendCtx(b.ctx, "safety_block", fmt.Sprintf("new workdir blocked: %s -> %s", workdir, result.Rule))
+		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
+	}
 
 	// Kill any existing session for this key so Create succeeds.
 	_ = b.sessions.Kill(key)
 
 	sess, err := b.sessions.Create(key, workdir)
 	if err != nil {
-		return c.Reply(fmt.Sprintf("Failed to create session: %s", err))
+		slog.Error("failed to create session", "key", key, "err", err)
+		return c.Reply("Failed to create session.")
 	}
 
 	_ = b.sessions.Save()
@@ -95,9 +118,15 @@ func (b *Bot) handleResume(c tele.Context, key, args string) error {
 		return c.Reply("Usage: /resume <session-id>")
 	}
 
+	// Validate session ID format to prevent injection.
+	if !sessionIDRe.MatchString(claudeSessionID) {
+		return c.Reply("Invalid session ID format.")
+	}
+
 	_ = b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
 	if err := b.sessions.SetClaudeSession(key, claudeSessionID); err != nil {
-		return c.Reply(fmt.Sprintf("Failed to resume: %s", err))
+		slog.Error("failed to resume session", "key", key, "err", err)
+		return c.Reply("Failed to resume session.")
 	}
 	b.sessions.Touch(key)
 	_ = b.sessions.Save()
@@ -131,7 +160,8 @@ func (b *Bot) handleSessions(c tele.Context) error {
 // handleClear resets the Claude session ID (fresh conversation) but keeps the workdir.
 func (b *Bot) handleClear(c tele.Context, key string) error {
 	if err := b.sessions.Clear(key); err != nil {
-		return c.Reply(fmt.Sprintf("No session to clear: %s", err))
+		slog.Error("failed to clear session", "key", key, "err", err)
+		return c.Reply("No session to clear.")
 	}
 	_ = b.sessions.Save()
 	return c.Reply("Session cleared. Next prompt starts a fresh conversation.")
@@ -144,7 +174,8 @@ func (b *Bot) handleKill(c tele.Context, key, args string) error {
 		target = key
 	}
 	if err := b.sessions.Kill(target); err != nil {
-		return c.Reply(fmt.Sprintf("Failed to kill session: %s", err))
+		slog.Error("failed to kill session", "key", target, "err", err)
+		return c.Reply("Failed to kill session.")
 	}
 	_ = b.sessions.Save()
 	return c.Reply(fmt.Sprintf("Session <code>%s</code> killed.", EscapeHTML(target)), tele.ModeHTML)
@@ -156,7 +187,11 @@ func (b *Bot) handleCd(c tele.Context, key, args string) error {
 	if dir == "" {
 		return c.Reply("Usage: /cd <path>")
 	}
-	dir = router.ExpandHome(dir, homeDir())
+	dir = filepath.Clean(router.ExpandHome(dir, homeDir()))
+	// Try to resolve symlinks for extra safety.
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = resolved
+	}
 
 	// Validate that the directory exists.
 	info, err := os.Stat(dir)
@@ -181,7 +216,8 @@ func (b *Bot) handleCd(c tele.Context, key, args string) error {
 
 	_ = b.sessions.GetOrCreate(key, dir)
 	if err := b.sessions.SetWorkdir(key, dir); err != nil {
-		return c.Reply(fmt.Sprintf("Failed: %s", err))
+		slog.Error("failed to set workdir", "key", key, "dir", dir, "err", err)
+		return c.Reply("Failed to change directory.")
 	}
 
 	_ = b.sessions.Save()
@@ -223,7 +259,8 @@ func (b *Bot) handleStatus(c tele.Context) error {
 // handleCancel terminates the running Claude process for this session, if any.
 func (b *Bot) handleCancel(c tele.Context, key string) error {
 	if err := b.executor.Cancel(key); err != nil {
-		return c.Reply(fmt.Sprintf("Cancel failed: %s", err))
+		slog.Error("cancel failed", "key", key, "err", err)
+		return c.Reply("Cancel failed.")
 	}
 	return c.Reply("Cancelled running Claude process.")
 }
@@ -255,10 +292,19 @@ func (b *Bot) handleShell(c tele.Context, key, args string) error {
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
 	cmd.Dir = workdir
-	cmd.Env = append(cmd.Environ(),
-		"HOME="+homeDir(),
+	// CRIT-1: Minimal explicit env — do NOT inherit the full process environment.
+	cmd.Env = []string{
+		"HOME=" + homeDir(),
 		"TMPDIR=/tmp",
-	)
+		"PATH=" + os.Getenv("PATH"),
+		"SHELL=/bin/sh",
+		"LANG=en_US.UTF-8",
+	}
+	// CRIT-2: Kill entire process group on timeout to prevent orphaned children.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -341,6 +387,12 @@ func (b *Bot) handlePrompt(c tele.Context, key, prompt string) error {
 
 // runPrompt is the shared implementation for handlePrompt and handleLong.
 func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duration) error {
+	// HIGH-3: Prevent concurrent execution for the same key.
+	if _, loaded := b.inflight.LoadOrStore(key, struct{}{}); loaded {
+		return c.Reply("A command is already running. Use /cancel first.")
+	}
+	defer b.inflight.Delete(key)
+
 	msg := c.Message()
 
 	// 1. React with eyes to acknowledge receipt.
@@ -424,8 +476,8 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 	if err != nil {
 		b.stats.incErrors()
 		b.react(msg, "❌")
-		errMsg := fmt.Sprintf("Error: %s", EscapeHTML(err.Error()))
-		_, _ = b.editMessage(placeholder, errMsg, tele.ModeHTML)
+		slog.Error("claude execution failed", "key", key, "err", err)
+		_, _ = b.editMessage(placeholder, "Claude encountered an error. Check server logs for details.", "")
 		return nil // don't propagate; user already informed
 	}
 

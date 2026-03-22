@@ -176,7 +176,7 @@ func (m *Manager) Save() error {
 
 	path := filepath.Join(m.storageDir, "sessions.json")
 	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+	if err := os.WriteFile(tmpPath, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write %s: %w", tmpPath, err)
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
