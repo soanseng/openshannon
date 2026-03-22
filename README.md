@@ -5,6 +5,14 @@
 <h1 align="center">OpenShannon</h1>
 
 <p align="center">
+  <a href="https://github.com/soanseng/openshannon/actions/workflows/deploy.yml"><img src="https://github.com/soanseng/openshannon/actions/workflows/deploy.yml/badge.svg" alt="Deploy"></a>
+  <a href="https://github.com/soanseng/openshannon/releases"><img src="https://img.shields.io/github/v/tag/soanseng/openshannon?label=version" alt="Version"></a>
+  <a href="https://goreportcard.com/report/github.com/soanseng/openshannon"><img src="https://goreportcard.com/badge/github.com/soanseng/openshannon" alt="Go Report Card"></a>
+  <a href="https://github.com/soanseng/openshannon/blob/main/LICENSE"><img src="https://img.shields.io/github/license/soanseng/openshannon" alt="License"></a>
+  <a href="https://openshannon.org"><img src="https://img.shields.io/badge/docs-openshannon.org-blue" alt="Docs"></a>
+</p>
+
+<p align="center">
   A Go daemon that bridges Telegram to <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>, enabling remote control of a Claude Code agent from your phone. Think of it as your personal coding assistant that you can message from anywhere.
 </p>
 
