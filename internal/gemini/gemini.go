@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/scipio/openshannon/internal/claude"
+	"github.com/soanseng/openshannon/internal/claude"
 )
 
 const baseURL = "https://generativelanguage.googleapis.com/v1beta"

@@ -10,12 +10,12 @@ import (
 
 	tele "gopkg.in/telebot.v4"
 
-	"github.com/scipio/openshannon/internal/claude"
-	"github.com/scipio/openshannon/internal/config"
-	"github.com/scipio/openshannon/internal/gemini"
-	"github.com/scipio/openshannon/internal/notify"
-	"github.com/scipio/openshannon/internal/safety"
-	"github.com/scipio/openshannon/internal/session"
+	"github.com/soanseng/openshannon/internal/claude"
+	"github.com/soanseng/openshannon/internal/config"
+	"github.com/soanseng/openshannon/internal/gemini"
+	"github.com/soanseng/openshannon/internal/notify"
+	"github.com/soanseng/openshannon/internal/safety"
+	"github.com/soanseng/openshannon/internal/session"
 )
 
 // Bot wraps a telebot instance with application-level dependencies.

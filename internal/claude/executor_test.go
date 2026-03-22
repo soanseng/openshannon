@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/scipio/openshannon/internal/config"
+	"github.com/soanseng/openshannon/internal/config"
 )
 
 func TestMockExecutor(t *testing.T) {

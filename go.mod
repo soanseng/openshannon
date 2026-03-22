@@ -1,4 +1,4 @@
-module github.com/scipio/openshannon
+module github.com/soanseng/openshannon
 
 go 1.25.6
 

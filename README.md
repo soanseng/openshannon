@@ -351,3 +351,7 @@ make build
 ## License
 
 MIT
+
+---
+
+*OpenShannon is an independent open-source project. Claude Code is a product of [Anthropic](https://www.anthropic.com). This project is not affiliated with, endorsed by, or sponsored by Anthropic.*

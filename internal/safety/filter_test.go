@@ -3,7 +3,7 @@ package safety
 import (
 	"testing"
 
-	"github.com/scipio/openshannon/internal/config"
+	"github.com/soanseng/openshannon/internal/config"
 )
 
 func testConfig() config.SafetyConfig {

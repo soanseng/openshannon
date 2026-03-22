@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scipio/openshannon/internal/config"
+	"github.com/soanseng/openshannon/internal/config"
 )
 
 // Priority levels for ntfy.

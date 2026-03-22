@@ -16,8 +16,8 @@ import (
 
 	tele "gopkg.in/telebot.v4"
 
-	"github.com/scipio/openshannon/internal/claude"
-	"github.com/scipio/openshannon/internal/router"
+	"github.com/soanseng/openshannon/internal/claude"
+	"github.com/soanseng/openshannon/internal/router"
 )
 
 // sessionIDRe validates Claude session IDs (UUID-like or hex strings).
