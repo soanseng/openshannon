@@ -125,6 +125,7 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 		{Text: "cancel", Description: "Cancel running command"},
 		{Text: "shell", Description: "Run shell command directly"},
 		{Text: "long", Description: "Run with extended 30m timeout"},
+		{Text: "gog", Description: "Google services (Gmail/Calendar/Drive)"},
 		{Text: "imagine", Description: "Generate image with Gemini"},
 		{Text: "model", Description: "Switch model (haiku/sonnet/opus/gemini)"},
 		{Text: "help", Description: "Show all commands"},

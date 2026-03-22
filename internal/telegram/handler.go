@@ -69,6 +69,8 @@ func (b *Bot) handleMessage(c tele.Context) error {
 		return b.handleModel(c, key, args)
 	case "imagine":
 		return b.handleImagine(c, key, args)
+	case "gog":
+		return b.handleGog(c, key, args)
 	case "help":
 		return b.handleHelp(c)
 	default:
@@ -375,6 +377,7 @@ func (b *Bot) handleHelp(c tele.Context) error {
 /shell &lt;command&gt; — Run shell command
 /long &lt;prompt&gt; — Prompt with long timeout (30m)
 /imagine &lt;description&gt; — Generate image (Gemini)
+/gog &lt;service&gt; &lt;cmd&gt; — Google services (Gmail/Cal/Drive)
 
 <b>Info</b>
 /status — Show bot status and stats
@@ -460,6 +463,112 @@ func (b *Bot) handleModel(c tele.Context, key, args string) error {
 	}
 	_ = b.sessions.Save()
 	return c.Reply(fmt.Sprintf("Model switched to <b>%s</b> (%s)", model, modelID), tele.ModeHTML)
+}
+
+// handleGog runs gog CLI commands for Google services (Gmail, Calendar, Drive, etc).
+func (b *Bot) handleGog(c tele.Context, key, args string) error {
+	subcmd := strings.TrimSpace(args)
+
+	// No args — show usage
+	if subcmd == "" {
+		help := `<b>/gog — Google Services</b>
+
+<b>Gmail</b>
+/gog gmail search newer_than:1d
+/gog gmail send --to user@gmail.com --subject "Hi" --body "Hello"
+/gog gmail get &lt;messageId&gt;
+
+<b>Calendar</b>
+/gog calendar events
+/gog calendar create primary --title "Meeting" --start "2026-03-23 15:00" --end "2026-03-23 16:00"
+/gog calendar search "meeting"
+
+<b>Drive</b>
+/gog drive ls
+/gog drive search "report"
+/gog drive upload &lt;file&gt;
+/gog drive download &lt;fileId&gt;
+
+<b>Tasks</b>
+/gog tasks lists list
+/gog tasks list &lt;listId&gt;
+/gog tasks add &lt;listId&gt; --title "Todo"
+
+<b>Contacts</b>
+/gog contacts search "name"
+/gog contacts list
+
+<b>Any gog command works:</b>
+/gog &lt;service&gt; &lt;command&gt; [flags]`
+		return c.Reply(help, tele.ModeHTML)
+	}
+
+	msg := c.Message()
+	b.react(msg, "📧")
+
+	// Build gog command with account flag
+	account := os.Getenv("GOG_ACCOUNT")
+	if account == "" {
+		account = "your@gmail.com"
+	}
+
+	// Inject --account if not already present
+	gogArgs := subcmd
+	if !strings.Contains(gogArgs, "--account") {
+		gogArgs = gogArgs + " --account " + account
+	}
+	gogArgs += " --plain --no-input"
+
+	// Safety check
+	if result := b.filter.CheckShell("gog " + gogArgs); !result.Allowed {
+		b.react(msg, "🚫")
+		return c.Reply(fmt.Sprintf("Blocked: %s", result.Reason))
+	}
+
+	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+	workdir := router.ExpandHome(sess.Workdir, homeDir())
+
+	ctx, cancel := context.WithTimeout(b.ctx, b.cfg.Safety.ShellTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", "gog "+gogArgs)
+	cmd.Dir = workdir
+	cmd.Env = []string{
+		"HOME=" + homeDir(),
+		"TMPDIR=/tmp",
+		"PATH=" + os.Getenv("PATH"),
+		"GOG_KEYRING_PASSWORD=" + os.Getenv("GOG_KEYRING_PASSWORD"),
+		"LANG=en_US.UTF-8",
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+
+	output, err := cmd.CombinedOutput()
+	result := strings.TrimSpace(string(output))
+
+	if err != nil && result == "" {
+		b.react(msg, "❌")
+		slog.Error("gog command failed", "cmd", gogArgs, "err", err)
+		return c.Reply("gog command failed. Check server logs.")
+	}
+
+	if result == "" {
+		result = "(no output)"
+	}
+
+	b.react(msg, "✅")
+
+	// Send as pre-formatted for tables
+	if len(result) <= b.cfg.Streaming.MaxMessageLength-20 {
+		sendErr := c.Reply(fmt.Sprintf("<pre>%s</pre>", EscapeHTML(result)), tele.ModeHTML)
+		if sendErr != nil {
+			return c.Reply(result)
+		}
+		return nil
+	}
+	return b.sendChunked(msg.Chat, result, msg.ThreadID)
 }
 
 // handleImagine generates an image using Claude (prompt enhancement) + Gemini (image gen).

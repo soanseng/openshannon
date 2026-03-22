@@ -85,7 +85,10 @@ Edit `~/.config/claude-channels/env`:
 ```bash
 TELEGRAM_BOT_TOKEN=7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Optional:
+GEMINI_API_KEY=your_google_ai_api_key
 GROQ_API_KEY=gsk_xxxxxxxxxxxxx
+GOG_KEYRING_PASSWORD=your_gog_keyring_password
+GOG_ACCOUNT=your@gmail.com
 NTFY_TOPIC=claude-agent
 NTFY_TOKEN=tk_xxxxxxxxxxxxx
 ```
@@ -149,6 +152,9 @@ Bot: I found 12 TODO comments across 5 files...
 | `/cancel` | Cancel running command | `/cancel` |
 | `/shell <cmd>` | Run shell command directly | `/shell git status` |
 | `/long <prompt>` | Extended 30m timeout | `/long refactor the entire module` |
+| `/model [name]` | Switch model | `/model haiku` |
+| `/imagine <desc>` | Generate image (Gemini) | `/imagine a cat in space` |
+| `/gog <cmd>` | Google services | `/gog gmail search newer_than:1d` |
 | `/help` | Show all commands | `/help` |
 
 ### Forum Topics = Sessions
@@ -194,6 +200,57 @@ Two layers of protection:
 
 **Layer 2 — Claude Code deny list** (your existing `settings.json`):
 - Blocks tool executions: `Bash(sudo *)`, `Bash(rm -rf /*)`, etc.
+
+## Google Services (/gog)
+
+Integrates with [gog CLI](https://github.com/AarynSmith/gog) for Google Workspace access. Requires a Google account authenticated via `gog auth add`.
+
+```bash
+# Set up (one time)
+GOG_KEYRING_PASSWORD="your_password" gog auth add your@gmail.com
+```
+
+Add to your `env` file:
+```bash
+GOG_KEYRING_PASSWORD=your_password
+GOG_ACCOUNT=your@gmail.com
+```
+
+Then in Telegram:
+```
+/gog gmail search newer_than:1d          # Recent emails
+/gog gmail send --to x@y.com --subject "Hi" --body "Hello"
+/gog calendar events                     # Today's calendar
+/gog calendar create primary --title "Meeting" --start "2026-03-23 15:00" --end "2026-03-23 16:00"
+/gog drive ls                            # List Drive files
+/gog tasks lists list                    # List task lists
+/gog contacts search "John"             # Search contacts
+```
+
+Type `/gog` without arguments for the full command reference.
+
+## Image Generation (/imagine)
+
+Uses Claude to enhance your prompt, then Gemini 3.1 Flash to generate the image:
+
+```
+/imagine a cat wearing a space helmet painting the Mona Lisa
+```
+
+Requires `GEMINI_API_KEY` in your env file. Get one from [Google AI Studio](https://aistudio.google.com/apikey).
+
+## Model Switching (/model)
+
+Each topic/session can use a different model:
+
+```
+/model haiku       # Claude Haiku 4.5 (fast, cheap)
+/model sonnet      # Claude Sonnet 4.6 (balanced)
+/model opus        # Claude Opus 4.6 (most capable)
+/model gemini      # Gemini 2.5 Flash
+/model gemini-pro  # Gemini 2.5 Pro
+/model default     # Reset to config default
+```
 
 ## Configuration Reference
 
