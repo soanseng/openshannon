@@ -117,6 +117,7 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 		{Text: "cancel", Description: "Cancel running command"},
 		{Text: "shell", Description: "Run shell command directly"},
 		{Text: "long", Description: "Run with extended 30m timeout"},
+		{Text: "model", Description: "Switch model (haiku/sonnet/opus)"},
 		{Text: "help", Description: "Show all commands"},
 	}); err != nil {
 		slog.Warn("failed to register bot commands menu", "err", err)

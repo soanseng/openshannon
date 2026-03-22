@@ -149,6 +149,20 @@ func (m *Manager) SetClaudeSession(key, claudeSessionID string) error {
 	return nil
 }
 
+// SetModel changes the model override for an existing session.
+func (m *Manager) SetModel(key, model string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	sess, exists := m.sessions[key]
+	if !exists {
+		return fmt.Errorf("session not found: %s", key)
+	}
+
+	sess.Model = model
+	return nil
+}
+
 // List returns copies of all sessions. The returned slice is a snapshot;
 // mutating the returned sessions does not affect the manager's internal state.
 func (m *Manager) List() []*Session {

@@ -14,7 +14,7 @@ func TestMockExecutor(t *testing.T) {
 		CostUSD:   0.05,
 	}
 
-	result, err := mock.Run(context.Background(), "test:1", "", "/tmp", "say hello")
+	result, err := mock.Run(context.Background(), "test:1", "", "/tmp", "say hello", RunOpts{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestMockExecutor_Error(t *testing.T) {
 		Err: context.DeadlineExceeded,
 	}
 
-	result, err := mock.Run(context.Background(), "test:1", "", "/tmp", "say hello")
+	result, err := mock.Run(context.Background(), "test:1", "", "/tmp", "say hello", RunOpts{})
 	if err != context.DeadlineExceeded {
 		t.Fatalf("got err=%v, want %v", err, context.DeadlineExceeded)
 	}
@@ -59,7 +59,7 @@ func TestMockExecutor_RunWithStream(t *testing.T) {
 		collected = append(collected, text)
 	}
 
-	result, err := mock.RunWithStream(context.Background(), "test:1", "", "/tmp", "test prompt", cb)
+	result, err := mock.RunWithStream(context.Background(), "test:1", "", "/tmp", "test prompt", RunOpts{}, cb)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestBuildArgs_NewSession(t *testing.T) {
 		MaxBudgetUSD: 10.0,
 	}
 	exec := NewCLIExecutor(cfg)
-	args := exec.buildArgs("", "explain this code")
+	args := exec.buildArgs("", "explain this code", RunOpts{})
 
 	// workdir is set via cmd.Dir, not via -w flag (which means --worktree in Claude CLI)
 	want := []string{
@@ -108,7 +108,7 @@ func TestBuildArgs_ResumeSession(t *testing.T) {
 		MaxBudgetUSD: 10.0,
 	}
 	exec := NewCLIExecutor(cfg)
-	args := exec.buildArgs("sess-abc", "continue")
+	args := exec.buildArgs("sess-abc", "continue", RunOpts{})
 
 	want := []string{
 		"-p",
@@ -131,7 +131,7 @@ func TestBuildArgs_ResumeSession(t *testing.T) {
 func TestBuildArgs_NoFlags(t *testing.T) {
 	cfg := config.ClaudeConfig{}
 	exec := NewCLIExecutor(cfg)
-	args := exec.buildArgs("", "hello")
+	args := exec.buildArgs("", "hello", RunOpts{})
 
 	want := []string{"-p", "hello"}
 	if len(args) != len(want) {

@@ -28,9 +28,14 @@ type StreamCallback func(text string)
 // Executor interface for running Claude CLI commands.
 // The key parameter identifies the session (e.g. "topic:123") so that
 // concurrent topics each get their own process.
+// RunOpts holds per-invocation options beyond the base config.
+type RunOpts struct {
+	Model string // optional model override (e.g. "haiku", "sonnet", "opus")
+}
+
 type Executor interface {
-	Run(ctx context.Context, key, sessionID, workdir, prompt string) (*Result, error)
-	RunWithStream(ctx context.Context, key, sessionID, workdir, prompt string, cb StreamCallback) (*Result, error)
+	Run(ctx context.Context, key, sessionID, workdir, prompt string, opts RunOpts) (*Result, error)
+	RunWithStream(ctx context.Context, key, sessionID, workdir, prompt string, opts RunOpts, cb StreamCallback) (*Result, error)
 	Cancel(key string) error
 }
 
@@ -53,9 +58,12 @@ func NewCLIExecutor(cfg config.ClaudeConfig) *CLIExecutor {
 // buildArgs constructs the CLI argument list for a Claude invocation.
 // Note: workdir is set via cmd.Dir, not via -w flag.
 // Claude CLI's -w flag means --worktree (git worktree), not working directory.
-func (e *CLIExecutor) buildArgs(sessionID, prompt string) []string {
+func (e *CLIExecutor) buildArgs(sessionID, prompt string, opts RunOpts) []string {
 	args := []string{"-p"}
 	args = append(args, e.cfg.Flags...)
+	if opts.Model != "" {
+		args = append(args, "--model", opts.Model)
+	}
 	if sessionID != "" {
 		args = append(args, "--resume", sessionID)
 	}
@@ -77,8 +85,8 @@ func (e *CLIExecutor) binary() string {
 
 // Run invokes the Claude CLI and returns the complete result.
 // All stdout is collected, and the last line is parsed as the result JSON.
-func (e *CLIExecutor) Run(ctx context.Context, key, sessionID, workdir, prompt string) (*Result, error) {
-	args := e.buildArgs(sessionID, prompt)
+func (e *CLIExecutor) Run(ctx context.Context, key, sessionID, workdir, prompt string, opts RunOpts) (*Result, error) {
+	args := e.buildArgs(sessionID, prompt, opts)
 	cmd := exec.CommandContext(ctx, e.binary(), args...)
 	cmd.Dir = workdir
 
@@ -116,8 +124,8 @@ func (e *CLIExecutor) Run(ctx context.Context, key, sessionID, workdir, prompt s
 // RunWithStream invokes the Claude CLI and streams output line by line.
 // The StreamCallback is called for each text chunk received. The final
 // Result is returned when the process completes.
-func (e *CLIExecutor) RunWithStream(ctx context.Context, key, sessionID, workdir, prompt string, cb StreamCallback) (*Result, error) {
-	args := e.buildArgs(sessionID, prompt)
+func (e *CLIExecutor) RunWithStream(ctx context.Context, key, sessionID, workdir, prompt string, opts RunOpts, cb StreamCallback) (*Result, error) {
+	args := e.buildArgs(sessionID, prompt, opts)
 	cmd := exec.CommandContext(ctx, e.binary(), args...)
 	cmd.Dir = workdir
 
@@ -290,7 +298,7 @@ type MockExecutor struct {
 }
 
 // Run returns the pre-configured response or error.
-func (m *MockExecutor) Run(_ context.Context, _, _, _, _ string) (*Result, error) {
+func (m *MockExecutor) Run(_ context.Context, _, _, _, _ string, _ RunOpts) (*Result, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -302,7 +310,7 @@ func (m *MockExecutor) Run(_ context.Context, _, _, _, _ string) (*Result, error
 }
 
 // RunWithStream calls the callback for each StreamChunk, then returns the result.
-func (m *MockExecutor) RunWithStream(_ context.Context, _, _, _, _ string, cb StreamCallback) (*Result, error) {
+func (m *MockExecutor) RunWithStream(_ context.Context, _, _, _, _ string, _ RunOpts, cb StreamCallback) (*Result, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}

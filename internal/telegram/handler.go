@@ -16,6 +16,7 @@ import (
 
 	tele "gopkg.in/telebot.v4"
 
+	"github.com/scipio/claude-channels/internal/claude"
 	"github.com/scipio/claude-channels/internal/router"
 )
 
@@ -64,6 +65,8 @@ func (b *Bot) handleMessage(c tele.Context) error {
 		return b.handleShell(c, key, args)
 	case "long":
 		return b.handleLong(c, key, args)
+	case "model":
+		return b.handleModel(c, key, args)
 	case "help":
 		return b.handleHelp(c)
 	default:
@@ -372,12 +375,58 @@ func (b *Bot) handleHelp(c tele.Context) error {
 
 <b>Info</b>
 /status — Show bot status and stats
+/model [haiku|sonnet|opus] — Switch model
 /help — This message
 
 <b>Prompting</b>
 Send any text without a / prefix to prompt Claude.`
 
 	return c.Reply(help, tele.ModeHTML)
+}
+
+// validModels maps short names to Claude model IDs.
+var validModels = map[string]string{
+	"haiku":  "claude-haiku-4-5-20251001",
+	"sonnet": "claude-sonnet-4-6",
+	"opus":   "claude-opus-4-6",
+}
+
+// handleModel switches the model for the current session.
+func (b *Bot) handleModel(c tele.Context, key, args string) error {
+	model := strings.TrimSpace(strings.ToLower(args))
+
+	// No arg — show current model
+	if model == "" {
+		sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+		current := sess.Model
+		if current == "" {
+			current = "default (from config)"
+		}
+		lines := fmt.Sprintf("Current model: <b>%s</b>\n\nAvailable:\n/model haiku — Fast, cheap\n/model sonnet — Balanced\n/model opus — Most capable\n/model default — Use config default", current)
+		return c.Reply(lines, tele.ModeHTML)
+	}
+
+	// Reset to default
+	if model == "default" || model == "reset" {
+		sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+		_ = b.sessions.SetModel(sess.Key, "")
+		_ = b.sessions.Save()
+		return c.Reply("Model reset to config default.")
+	}
+
+	// Set model
+	modelID, ok := validModels[model]
+	if !ok {
+		return c.Reply(fmt.Sprintf("Unknown model: %s\nUse: haiku, sonnet, opus, or default", model))
+	}
+
+	sess := b.sessions.GetOrCreate(key, router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir()))
+	if err := b.sessions.SetModel(sess.Key, modelID); err != nil {
+		slog.Error("failed to set model", "key", key, "err", err)
+		return c.Reply("Failed to set model.")
+	}
+	_ = b.sessions.Save()
+	return c.Reply(fmt.Sprintf("Model switched to <b>%s</b> (%s)", model, modelID), tele.ModeHTML)
 }
 
 // handlePrompt sends the user's text to Claude and streams the response.
@@ -468,7 +517,8 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 		lastEdit = now
 	}
 
-	result, err := b.executor.RunWithStream(ctx, key, sess.ClaudeSession, workdir, prompt, streamCb)
+	opts := claude.RunOpts{Model: sess.Model}
+	result, err := b.executor.RunWithStream(ctx, key, sess.ClaudeSession, workdir, prompt, opts, streamCb)
 
 	b.sessions.Touch(key)
 

@@ -19,6 +19,7 @@ type Session struct {
 	Workdir       string    `json:"workdir"`
 	State         State     `json:"state"`
 	Label         string    `json:"label"`            // topic name from Telegram
+	Model         string    `json:"model,omitempty"`  // override model per session (haiku/sonnet/opus)
 	CreatedAt     time.Time `json:"created_at"`
 	LastActiveAt  time.Time `json:"last_active_at"`
 }
