@@ -1,6 +1,6 @@
-# Claude Channels Workspace
+# OpenShannon Workspace
 
-This is the default workspace for the Claude Channels Telegram bot.
+This is the default workspace for the OpenShannon Telegram bot.
 When receiving prompts from Telegram, you are running as `claude -p` in this directory.
 
 ## Behavior Guidelines

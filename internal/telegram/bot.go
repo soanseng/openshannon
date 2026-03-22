@@ -10,12 +10,12 @@ import (
 
 	tele "gopkg.in/telebot.v4"
 
-	"github.com/scipio/claude-channels/internal/claude"
-	"github.com/scipio/claude-channels/internal/config"
-	"github.com/scipio/claude-channels/internal/gemini"
-	"github.com/scipio/claude-channels/internal/notify"
-	"github.com/scipio/claude-channels/internal/safety"
-	"github.com/scipio/claude-channels/internal/session"
+	"github.com/scipio/openshannon/internal/claude"
+	"github.com/scipio/openshannon/internal/config"
+	"github.com/scipio/openshannon/internal/gemini"
+	"github.com/scipio/openshannon/internal/notify"
+	"github.com/scipio/openshannon/internal/safety"
+	"github.com/scipio/openshannon/internal/session"
 )
 
 // Bot wraps a telebot instance with application-level dependencies.
@@ -147,7 +147,7 @@ func (b *Bot) Start(ctx context.Context) error {
 		"allowed_users", len(b.allowed),
 	)
 
-	_ = b.notifier.SendCtx(ctx, "daemon_start", fmt.Sprintf("claude-channels started as @%s", b.bot.Me.Username))
+	_ = b.notifier.SendCtx(ctx, "daemon_start", fmt.Sprintf("openshannon started as @%s", b.bot.Me.Username))
 
 	// Run the blocking poller in a separate goroutine so we can
 	// select on ctx.Done().

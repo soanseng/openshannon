@@ -1,6 +1,6 @@
-# Claude Channels — Configuration
-# Copy to ~/.config/claude-channels/config.yaml and edit.
-# Secrets should go in ~/.config/claude-channels/env instead.
+# OpenShannon — Configuration
+# Copy to ~/.config/openshannon/config.yaml and edit.
+# Secrets should go in ~/.config/openshannon/env instead.
 
 # ── Telegram ──────────────────────────────────────────
 telegram:
@@ -89,4 +89,4 @@ notify:
 
 # ── Storage ──────────────────────────────────────────
 storage:
-  dir: "~/.config/claude-channels"
+  dir: "~/.config/openshannon"

@@ -81,8 +81,8 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	}
 
 	// Storage defaults
-	if cfg.Storage.Dir != "~/.config/claude-channels" {
-		t.Errorf("Storage.Dir = %q, want %q", cfg.Storage.Dir, "~/.config/claude-channels")
+	if cfg.Storage.Dir != "~/.config/openshannon" {
+		t.Errorf("Storage.Dir = %q, want %q", cfg.Storage.Dir, "~/.config/openshannon")
 	}
 
 	// Telegram defaults
@@ -123,7 +123,7 @@ notify:
   ntfy_token: "tk_secret"
   events: ["daemon_start"]
 storage:
-  dir: "/var/lib/claude-channels"
+  dir: "/var/lib/openshannon"
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
@@ -235,8 +235,8 @@ storage:
 	}
 
 	// Storage override
-	if cfg.Storage.Dir != "/var/lib/claude-channels" {
-		t.Errorf("Storage.Dir = %q, want %q", cfg.Storage.Dir, "/var/lib/claude-channels")
+	if cfg.Storage.Dir != "/var/lib/openshannon" {
+		t.Errorf("Storage.Dir = %q, want %q", cfg.Storage.Dir, "/var/lib/openshannon")
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/openshannon/internal/config"
 )
 
 // FilterResult describes the outcome of a safety check.

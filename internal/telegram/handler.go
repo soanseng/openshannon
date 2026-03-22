@@ -16,8 +16,8 @@ import (
 
 	tele "gopkg.in/telebot.v4"
 
-	"github.com/scipio/claude-channels/internal/claude"
-	"github.com/scipio/claude-channels/internal/router"
+	"github.com/scipio/openshannon/internal/claude"
+	"github.com/scipio/openshannon/internal/router"
 )
 
 // sessionIDRe validates Claude session IDs (UUID-like or hex strings).
@@ -238,7 +238,7 @@ func (b *Bot) handleStatus(c tele.Context) error {
 	prompts, shell, blocked, errors := b.stats.snapshot()
 
 	var sb strings.Builder
-	sb.WriteString("<b>claude-channels status</b>\n\n")
+	sb.WriteString("<b>openshannon status</b>\n\n")
 	sb.WriteString(fmt.Sprintf("Version: <code>%s</code>\n", EscapeHTML(Version)))
 	sb.WriteString(fmt.Sprintf("Uptime: %s\n", uptime))
 	sb.WriteString(fmt.Sprintf("Bot: @%s\n\n", EscapeHTML(b.bot.Me.Username)))
@@ -362,7 +362,7 @@ func (b *Bot) handleLong(c tele.Context, key, args string) error {
 
 // handleHelp sends a list of available commands.
 func (b *Bot) handleHelp(c tele.Context) error {
-	help := `<b>claude-channels commands</b>
+	help := `<b>openshannon commands</b>
 
 <b>Session management</b>
 /new [workdir] — Start fresh session

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Channels — Interactive Setup Script
+# OpenShannon — Interactive Setup Script
 # Usage: bash install.sh
 set -euo pipefail
 
@@ -12,7 +12,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-CONFIG_DIR="$HOME/.config/claude-channels"
+CONFIG_DIR="$HOME/.config/openshannon"
 WORKSPACE="$HOME/OpenShannon"
 INSTALL_DIR="$HOME/go/bin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,7 +26,7 @@ ask()   { echo -en "${CYAN}?${NC} $* "; }
 # ── Header ────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║        Claude Channels — Setup Wizard        ║${NC}"
+echo -e "${BOLD}║          OpenShannon — Setup Wizard           ║${NC}"
 echo -e "${BOLD}║  Telegram → Claude Code Bridge               ║${NC}"
 echo -e "${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo ""
@@ -54,8 +54,8 @@ echo -e "${BOLD}[1/6] Building binary...${NC}"
 cd "$SCRIPT_DIR"
 VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
 mkdir -p "$INSTALL_DIR"
-go build -ldflags "-X main.version=$VERSION" -o "$INSTALL_DIR/claude-channels" ./cmd/claude-channels
-ok "Built claude-channels ($VERSION) → $INSTALL_DIR/"
+go build -ldflags "-X main.version=$VERSION" -o "$INSTALL_DIR/openshannon" ./cmd/openshannon
+ok "Built openshannon ($VERSION) → $INSTALL_DIR/"
 
 # Check PATH
 if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
@@ -228,7 +228,7 @@ mkdir -p "$WORKSPACE"
 if [ ! -d "$WORKSPACE/.git" ]; then
     cd "$WORKSPACE" && git init -q
     echo "# OpenShannon Workspace" > README.md
-    git add -A && git commit -q -m "init: workspace for Claude Channels"
+    git add -A && git commit -q -m "init: workspace for OpenShannon"
     ok "Workspace git repo → $WORKSPACE"
 fi
 
@@ -240,7 +240,7 @@ ok "CLAUDE.md → $WORKSPACE/CLAUDE.md"
 
 # systemd
 mkdir -p "$HOME/.config/systemd/user"
-cp "$SCRIPT_DIR/claude-channels.service" "$HOME/.config/systemd/user/"
+cp "$SCRIPT_DIR/openshannon.service" "$HOME/.config/systemd/user/"
 systemctl --user daemon-reload
 loginctl enable-linger "$(whoami)" 2>/dev/null || true
 ok "Systemd service installed (linger enabled)"

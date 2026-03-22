@@ -1,13 +1,13 @@
-BINARY := claude-channels
+BINARY := openshannon
 INSTALL_DIR := $(HOME)/go/bin
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 WORKSPACE := $(HOME)/OpenShannon
-CONFIG_DIR := $(HOME)/.config/claude-channels
+CONFIG_DIR := $(HOME)/.config/openshannon
 
 .PHONY: build install setup test vet run clean start stop restart logs status workspace
 
 build:
-	go build -ldflags "-X main.version=$(VERSION)" -o $(INSTALL_DIR)/$(BINARY) ./cmd/claude-channels
+	go build -ldflags "-X main.version=$(VERSION)" -o $(INSTALL_DIR)/$(BINARY) ./cmd/openshannon
 
 test:
 	go test -race ./...
@@ -19,13 +19,13 @@ cover:
 	go test -race -cover ./...
 
 run:
-	go run ./cmd/claude-channels
+	go run ./cmd/openshannon
 
 # Full one-click setup: config + workspace + service
 setup: build config workspace service
 	@echo ""
 	@echo "============================================"
-	@echo "  claude-channels setup complete!"
+	@echo "  openshannon setup complete!"
 	@echo "============================================"
 	@echo ""
 	@echo "Next steps:"
@@ -67,7 +67,7 @@ workspace:
 	@if [ ! -d $(WORKSPACE)/.git ]; then \
 		cd $(WORKSPACE) && git init && \
 		echo "# OpenShannon Workspace" > README.md && \
-		git add -A && git commit -m "init: workspace for Claude Channels"; \
+		git add -A && git commit -m "init: workspace for OpenShannon"; \
 		echo "Initialized git repo: $(WORKSPACE)"; \
 	fi
 	@if [ ! -f $(WORKSPACE)/CLAUDE.md ]; then \
@@ -86,7 +86,7 @@ workspace:
 # Install systemd service
 service:
 	@mkdir -p $(HOME)/.config/systemd/user
-	@cp claude-channels.service $(HOME)/.config/systemd/user/
+	@cp openshannon.service $(HOME)/.config/systemd/user/
 	@systemctl --user daemon-reload
 	@echo "Systemd service installed"
 
@@ -94,21 +94,21 @@ service:
 install: setup
 
 start:
-	systemctl --user enable --now claude-channels
+	systemctl --user enable --now openshannon
 	@loginctl enable-linger $(shell whoami) 2>/dev/null || true
 	@echo "Service started + linger enabled"
 
 stop:
-	systemctl --user stop claude-channels
+	systemctl --user stop openshannon
 
 restart: build
-	systemctl --user restart claude-channels
+	systemctl --user restart openshannon
 
 logs:
-	journalctl --user -u claude-channels -f
+	journalctl --user -u openshannon -f
 
 status:
-	systemctl --user status claude-channels
+	systemctl --user status openshannon
 
 clean:
 	rm -f $(INSTALL_DIR)/$(BINARY)

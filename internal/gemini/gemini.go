@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/scipio/claude-channels/internal/claude"
+	"github.com/scipio/openshannon/internal/claude"
 )
 
 const baseURL = "https://generativelanguage.googleapis.com/v1beta"
@@ -182,7 +182,7 @@ func (e *Executor) call(ctx context.Context, prompt string, wantImage bool) (tex
 			if p.InlineData.MimeType == "image/jpeg" {
 				ext = ".jpg"
 			}
-			tmpDir := filepath.Join(os.TempDir(), "claude-channels")
+			tmpDir := filepath.Join(os.TempDir(), "openshannon")
 			_ = os.MkdirAll(tmpDir, 0o700)
 			tmpFile := filepath.Join(tmpDir, fmt.Sprintf("gemini-%d%s", time.Now().UnixNano(), ext))
 			if writeErr := os.WriteFile(tmpFile, imgData, 0o600); writeErr != nil {

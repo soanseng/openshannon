@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/openshannon/internal/config"
 )
 
 // Priority levels for ntfy.

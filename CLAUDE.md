@@ -1,4 +1,4 @@
-# claude-channels
+# openshannon
 
 Go daemon bridging Telegram to Claude Code.
 
@@ -6,7 +6,7 @@ Go daemon bridging Telegram to Claude Code.
 
 ```bash
 go build ./... && go vet ./... && go test -race ./...
-make build      # build binary to ~/go/bin/claude-channels
+make build      # build binary to ~/go/bin/openshannon
 make install    # install config + systemd service + workspace CLAUDE.md
 make start      # enable + start systemd service
 make restart    # restart after code changes

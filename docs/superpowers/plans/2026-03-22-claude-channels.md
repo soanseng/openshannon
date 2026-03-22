@@ -1,4 +1,4 @@
-# Claude Channels Implementation Plan
+# OpenShannon Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,15 +8,15 @@
 
 **Tech Stack:** Go 1.22+, telebot/v4 (Telegram Bot API), slog (logging), YAML config, systemd user service.
 
-**Spec:** `docs/superpowers/specs/2026-03-22-claude-channels-design.md`
+**Spec:** `docs/superpowers/specs/2026-03-22-openshannon-design.md`
 
 ---
 
 ## File Structure
 
 ```
-~/infra/claude-channels/
-├── cmd/claude-channels/main.go           # Entrypoint, wire dependencies, signal handling
+~/infra/openshannon/
+├── cmd/openshannon/main.go           # Entrypoint, wire dependencies, signal handling
 ├── internal/
 │   ├── config/config.go                  # YAML config loading with env var expansion
 │   ├── config/config_test.go
@@ -35,7 +35,7 @@
 │   ├── telegram/formatter_test.go
 │   └── notify/ntfy.go                    # ntfy push notifications
 ├── config.example.yaml
-├── claude-channels.service
+├── openshannon.service
 ├── Makefile
 ├── go.mod
 └── go.sum
@@ -47,7 +47,7 @@
 
 **Files:**
 - Create: `go.mod`
-- Create: `cmd/claude-channels/main.go`
+- Create: `cmd/openshannon/main.go`
 - Create: `internal/config/config.go`
 - Create: `internal/config/config_test.go`
 - Create: `config.example.yaml`
@@ -56,8 +56,8 @@
 - [ ] **Step 1: Initialize Go module**
 
 ```bash
-cd ~/infra/claude-channels
-go mod init github.com/scipio/claude-channels
+cd ~/infra/openshannon
+go mod init github.com/scipio/openshannon
 ```
 
 - [ ] **Step 2: Write config test**
@@ -142,7 +142,7 @@ telegram:
 - [ ] **Step 3: Run test to verify it fails**
 
 ```bash
-cd ~/infra/claude-channels && go test ./internal/config/...
+cd ~/infra/openshannon && go test ./internal/config/...
 ```
 
 Expected: FAIL — package doesn't exist yet.
@@ -251,7 +251,7 @@ func defaults() *Config {
 			Events: []string{"daemon_start", "daemon_crash", "safety_block", "long_task_complete"},
 		},
 		Storage: StorageConfig{
-			Dir: "~/.config/claude-channels",
+			Dir: "~/.config/openshannon",
 		},
 	}
 }
@@ -288,7 +288,7 @@ func Load(path string) (*Config, error) {
 - [ ] **Step 5: Install yaml dependency and run tests**
 
 ```bash
-cd ~/infra/claude-channels && go get gopkg.in/yaml.v3 && go test -race ./internal/config/...
+cd ~/infra/openshannon && go get gopkg.in/yaml.v3 && go test -race ./internal/config/...
 ```
 
 Expected: PASS
@@ -300,13 +300,13 @@ Create `config.example.yaml` with all fields documented.
 - [ ] **Step 7: Create Makefile**
 
 ```makefile
-BINARY := claude-channels
+BINARY := openshannon
 INSTALL_DIR := $(HOME)/go/bin
 
 .PHONY: build install test run clean restart logs status
 
 build:
-	go build -o $(INSTALL_DIR)/$(BINARY) ./cmd/claude-channels
+	go build -o $(INSTALL_DIR)/$(BINARY) ./cmd/openshannon
 
 test:
 	go test -race ./...
@@ -315,21 +315,21 @@ vet:
 	go vet ./...
 
 run:
-	go run ./cmd/claude-channels
+	go run ./cmd/openshannon
 
 install: build
-	cp claude-channels.service ~/.config/systemd/user/
+	cp openshannon.service ~/.config/systemd/user/
 	systemctl --user daemon-reload
-	systemctl --user enable --now claude-channels
+	systemctl --user enable --now openshannon
 
 restart:
-	systemctl --user restart claude-channels
+	systemctl --user restart openshannon
 
 logs:
-	journalctl --user -u claude-channels -f
+	journalctl --user -u openshannon -f
 
 status:
-	systemctl --user status claude-channels
+	systemctl --user status openshannon
 
 clean:
 	rm -f $(INSTALL_DIR)/$(BINARY)
@@ -337,12 +337,12 @@ clean:
 
 - [ ] **Step 8: Create minimal main.go**
 
-Create `cmd/claude-channels/main.go` that loads config and logs startup.
+Create `cmd/openshannon/main.go` that loads config and logs startup.
 
 - [ ] **Step 9: Verify build**
 
 ```bash
-cd ~/infra/claude-channels && go build ./... && go vet ./...
+cd ~/infra/openshannon && go build ./... && go vet ./...
 ```
 
 - [ ] **Step 10: Commit**
@@ -527,7 +527,7 @@ func readFile(path string) ([]byte, error) {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/session/...
+cd ~/infra/openshannon && go test -race ./internal/session/...
 ```
 
 Expected: FAIL
@@ -567,7 +567,7 @@ Create `internal/session/manager.go` with `NewManager`, `Create`, `Get`, `GetOrC
 - [ ] **Step 5: Run tests**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/session/...
+cd ~/infra/openshannon && go test -race ./internal/session/...
 ```
 
 Expected: PASS
@@ -575,7 +575,7 @@ Expected: PASS
 - [ ] **Step 6: Build check**
 
 ```bash
-cd ~/infra/claude-channels && go build ./... && go vet ./...
+cd ~/infra/openshannon && go build ./... && go vet ./...
 ```
 
 - [ ] **Step 7: Commit**
@@ -602,7 +602,7 @@ package safety
 import (
 	"testing"
 
-	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/openshannon/internal/config"
 )
 
 func TestFilter_BlockedPrompts(t *testing.T) {
@@ -720,7 +720,7 @@ func defaultSafetyConfig() config.SafetyConfig {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/safety/...
+cd ~/infra/openshannon && go test -race ./internal/safety/...
 ```
 
 - [ ] **Step 3: Implement filter.go**
@@ -735,7 +735,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/openshannon/internal/config"
 )
 
 type FilterResult struct {
@@ -805,7 +805,7 @@ func (f *Filter) CheckShell(cmd string) FilterResult {
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/safety/...
+cd ~/infra/openshannon && go test -race ./internal/safety/...
 ```
 
 Expected: PASS
@@ -813,7 +813,7 @@ Expected: PASS
 - [ ] **Step 5: Build check**
 
 ```bash
-cd ~/infra/claude-channels && go build ./... && go vet ./...
+cd ~/infra/openshannon && go build ./... && go vet ./...
 ```
 
 - [ ] **Step 6: Commit**
@@ -931,7 +931,7 @@ func TestBuildArgs(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/claude/...
+cd ~/infra/openshannon && go test -race ./internal/claude/...
 ```
 
 - [ ] **Step 3: Implement executor.go**
@@ -947,7 +947,7 @@ Create `internal/claude/executor.go` with:
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/claude/...
+cd ~/infra/openshannon && go test -race ./internal/claude/...
 ```
 
 Expected: PASS
@@ -955,7 +955,7 @@ Expected: PASS
 - [ ] **Step 5: Build check**
 
 ```bash
-cd ~/infra/claude-channels && go build ./... && go vet ./...
+cd ~/infra/openshannon && go build ./... && go vet ./...
 ```
 
 - [ ] **Step 6: Commit**
@@ -1060,7 +1060,7 @@ func TestChunkMessage_CodeBlockPreserved(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/telegram/...
+cd ~/infra/openshannon && go test -race ./internal/telegram/...
 ```
 
 - [ ] **Step 3: Implement formatter.go**
@@ -1070,7 +1070,7 @@ Create `internal/telegram/formatter.go` with `MarkdownToHTML`, `ChunkMessage`.
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/telegram/...
+cd ~/infra/openshannon && go test -race ./internal/telegram/...
 ```
 
 Expected: PASS
@@ -1178,7 +1178,7 @@ Create `internal/router/router.go` with `ParseCommand`, `SessionKey`, `IsAllowed
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./internal/router/...
+cd ~/infra/openshannon && go test -race ./internal/router/...
 ```
 
 Expected: PASS
@@ -1247,7 +1247,7 @@ Create `internal/telegram/handler.go`:
 - [ ] **Step 3: Build check**
 
 ```bash
-cd ~/infra/claude-channels && go build ./... && go vet ./...
+cd ~/infra/openshannon && go build ./... && go vet ./...
 ```
 
 - [ ] **Step 4: Commit**
@@ -1262,7 +1262,7 @@ git commit -m "feat: telegram bot with message handling and streaming"
 ## Task 9: Main Entrypoint + Wire Everything
 
 **Files:**
-- Modify: `cmd/claude-channels/main.go`
+- Modify: `cmd/openshannon/main.go`
 
 - [ ] **Step 1: Wire all components in main.go**
 
@@ -1277,12 +1277,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/scipio/claude-channels/internal/claude"
-	"github.com/scipio/claude-channels/internal/config"
-	"github.com/scipio/claude-channels/internal/notify"
-	"github.com/scipio/claude-channels/internal/safety"
-	"github.com/scipio/claude-channels/internal/session"
-	"github.com/scipio/claude-channels/internal/telegram"
+	"github.com/scipio/openshannon/internal/claude"
+	"github.com/scipio/openshannon/internal/config"
+	"github.com/scipio/openshannon/internal/notify"
+	"github.com/scipio/openshannon/internal/safety"
+	"github.com/scipio/openshannon/internal/session"
+	"github.com/scipio/openshannon/internal/telegram"
 )
 
 func main() {
@@ -1319,30 +1319,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	notifier.Send("daemon_start", "Claude Channels started")
-	slog.Info("starting claude-channels")
+	notifier.Send("daemon_start", "OpenShannon started")
+	slog.Info("starting openshannon")
 
 	if err := bot.Start(ctx); err != nil {
 		slog.Error("bot stopped with error", "error", err)
-		notifier.Send("daemon_crash", "Claude Channels crashed: "+err.Error())
+		notifier.Send("daemon_crash", "OpenShannon crashed: "+err.Error())
 		os.Exit(1)
 	}
 
 	sessionMgr.Save()
-	notifier.Send("daemon_stop", "Claude Channels stopped")
+	notifier.Send("daemon_stop", "OpenShannon stopped")
 }
 ```
 
 - [ ] **Step 2: Full build and vet**
 
 ```bash
-cd ~/infra/claude-channels && go build ./... && go vet ./...
+cd ~/infra/openshannon && go build ./... && go vet ./...
 ```
 
 - [ ] **Step 3: Full test suite**
 
 ```bash
-cd ~/infra/claude-channels && go test -race ./...
+cd ~/infra/openshannon && go test -race ./...
 ```
 
 - [ ] **Step 4: Commit**
@@ -1356,31 +1356,31 @@ git add cmd/ && git commit -m "feat: main entrypoint wiring all components"
 ## Task 10: systemd Service + config.example
 
 **Files:**
-- Create: `claude-channels.service`
+- Create: `openshannon.service`
 - Modify: `config.example.yaml`
 
 - [ ] **Step 1: Create systemd service file**
 
 ```ini
 [Unit]
-Description=Claude Channels Telegram Daemon
+Description=OpenShannon Telegram Daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=%h/go/bin/claude-channels --config %h/.config/claude-channels/config.yaml
+ExecStart=%h/go/bin/openshannon --config %h/.config/openshannon/config.yaml
 WorkingDirectory=%h
 Restart=on-failure
 RestartSec=10
-EnvironmentFile=%h/.config/claude-channels/env
+EnvironmentFile=%h/.config/openshannon/env
 NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=%h
 PrivateTmp=true
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=claude-channels
+SyslogIdentifier=openshannon
 
 [Install]
 WantedBy=default.target
@@ -1393,7 +1393,7 @@ With all fields documented and sensible defaults.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add claude-channels.service config.example.yaml
+git add openshannon.service config.example.yaml
 git commit -m "feat: systemd service and example config"
 ```
 
@@ -1420,7 +1420,7 @@ set -euo pipefail
 - [ ] **Step 3: Full test suite with coverage**
 
 ```bash
-cd ~/infra/claude-channels && go test -race -cover ./...
+cd ~/infra/openshannon && go test -race -cover ./...
 ```
 
 Target: overall 80%+
@@ -1438,14 +1438,14 @@ git add test/ && git commit -m "test: integration and smoke tests"
 - [ ] **Step 1: Build binary**
 
 ```bash
-cd ~/infra/claude-channels && make build
+cd ~/infra/openshannon && make build
 ```
 
 - [ ] **Step 2: Setup config**
 
 ```bash
-mkdir -p ~/.config/claude-channels
-cp config.example.yaml ~/.config/claude-channels/config.yaml
+mkdir -p ~/.config/openshannon
+cp config.example.yaml ~/.config/openshannon/config.yaml
 # Edit config.yaml with real Telegram user ID
 # Create env file with secrets
 ```
@@ -1483,17 +1483,17 @@ Send `/status` from Telegram, verify response.
 - [ ] **Step 1: Create dotfiles symlink structure**
 
 ```bash
-mkdir -p ~/dotfiles/claude-channels.symlink
-cp config.example.yaml ~/dotfiles/claude-channels.symlink/config.yaml
-cp claude-channels.service ~/dotfiles/claude-channels.symlink/
-cp config.example.yaml ~/dotfiles/claude-channels.symlink/env.example
+mkdir -p ~/dotfiles/openshannon.symlink
+cp config.example.yaml ~/dotfiles/openshannon.symlink/config.yaml
+cp openshannon.service ~/dotfiles/openshannon.symlink/
+cp config.example.yaml ~/dotfiles/openshannon.symlink/env.example
 ```
 
 - [ ] **Step 2: Create symlinks**
 
 ```bash
-ln -sf ~/dotfiles/claude-channels.symlink/config.yaml ~/.config/claude-channels/config.yaml
-ln -sf ~/dotfiles/claude-channels.symlink/claude-channels.service ~/.config/systemd/user/claude-channels.service
+ln -sf ~/dotfiles/openshannon.symlink/config.yaml ~/.config/openshannon/config.yaml
+ln -sf ~/dotfiles/openshannon.symlink/openshannon.service ~/.config/systemd/user/openshannon.service
 systemctl --user daemon-reload
 ```
 

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/openshannon/internal/config"
 )
 
 // captured holds request data recorded by the test HTTP server.

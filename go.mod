@@ -1,4 +1,4 @@
-module github.com/scipio/claude-channels
+module github.com/scipio/openshannon
 
 go 1.25.6
 

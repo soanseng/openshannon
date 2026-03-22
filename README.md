@@ -1,6 +1,12 @@
-# Claude Channels
+<p align="center">
+  <img src="shannon.jpg" alt="OpenShannon" width="200">
+</p>
 
-A Go daemon that bridges Telegram to [Claude Code](https://docs.anthropic.com/en/docs/claude-code), enabling remote control of a Claude Code agent from your phone. Think of it as your personal coding assistant that you can message from anywhere.
+<h1 align="center">OpenShannon</h1>
+
+<p align="center">
+  A Go daemon that bridges Telegram to <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>, enabling remote control of a Claude Code agent from your phone. Think of it as your personal coding assistant that you can message from anywhere.
+</p>
 
 Each Telegram Forum Topic maps to an isolated Claude Code session with its own working directory and conversation context.
 
@@ -59,8 +65,8 @@ Each topic becomes an isolated Claude Code session.
 ### 3. Install
 
 ```bash
-git clone https://github.com/scipio/claude-channels.git ~/infra/claude-channels
-cd ~/infra/claude-channels
+git clone https://github.com/scipio/openshannon.git ~/infra/openshannon
+cd ~/infra/openshannon
 
 # Interactive setup wizard (recommended)
 bash install.sh
@@ -78,17 +84,17 @@ The wizard guides you through:
 6. **Workspace** — creates `~/OpenShannon/` with CLAUDE.md and systemd service
 
 Files created:
-- `~/.config/claude-channels/config.yaml` — bot config (600)
-- `~/.config/claude-channels/env` — secrets (600)
+- `~/.config/openshannon/config.yaml` — bot config (600)
+- `~/.config/openshannon/env` — secrets (600)
 - `~/OpenShannon/` — default workspace with git
 - `~/OpenShannon/CLAUDE.md` — Claude instructions for Telegram use
-- `~/.config/systemd/user/claude-channels.service` — systemd service
+- `~/.config/systemd/user/openshannon.service` — systemd service
 
 To add Google services later: `make setup-gog`
 
 ### 4. Configure
 
-Edit `~/.config/claude-channels/config.yaml`:
+Edit `~/.config/openshannon/config.yaml`:
 
 ```yaml
 telegram:
@@ -97,7 +103,7 @@ telegram:
     - YOUR_TELEGRAM_USER_ID    # <-- replace this
 ```
 
-Edit `~/.config/claude-channels/env`:
+Edit `~/.config/openshannon/env`:
 
 ```bash
 TELEGRAM_BOT_TOKEN=7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -113,14 +119,14 @@ NTFY_TOKEN=tk_xxxxxxxxxxxxx
 Set permissions:
 
 ```bash
-chmod 600 ~/.config/claude-channels/env
+chmod 600 ~/.config/openshannon/env
 ```
 
 ### 5. Test Run
 
 ```bash
 # Run in foreground first to verify
-cd ~/infra/claude-channels
+cd ~/infra/openshannon
 make run
 ```
 
@@ -181,7 +187,7 @@ In a Forum-enabled group, each topic is an isolated session:
 ```
 Topic: "infra"           → workdir: ~/infra
 Topic: "feedbot"         → workdir: ~/apps/feedbot
-Topic: "claude-channels" → workdir: ~/infra/claude-channels
+Topic: "openshannon"     → workdir: ~/infra/openshannon
 ```
 
 First message in a new topic auto-creates a session. Use `/cd` to set the workdir.

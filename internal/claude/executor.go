@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/scipio/claude-channels/internal/config"
+	"github.com/scipio/openshannon/internal/config"
 )
 
 // Result represents output from a Claude CLI invocation.

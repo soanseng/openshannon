@@ -118,7 +118,7 @@ func defaults() *Config {
 			Events: []string{"daemon_start", "daemon_crash", "safety_block", "long_task_complete"},
 		},
 		Storage: StorageConfig{
-			Dir: "~/.config/claude-channels",
+			Dir: "~/.config/openshannon",
 		},
 	}
 }

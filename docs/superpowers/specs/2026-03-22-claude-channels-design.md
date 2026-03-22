@@ -1,4 +1,4 @@
-# Claude Channels — Design Spec
+# OpenShannon — Design Spec
 
 **Date**: 2026-03-22
 **Status**: Reviewed (spec review v1 — 3C/5H/7M/5L issues addressed)
@@ -30,7 +30,7 @@ A Go daemon that bridges Telegram to Claude Code, enabling remote control of a C
 Telegram Bot API (Long Polling)
         │
         ▼
-┌─ Go Daemon (claude-channels) ──────────────────────┐
+┌─ Go Daemon (openshannon) ──────────────────────┐
 │                                                      │
 │  Telegram Adapter → Command Router → Safety Filter   │
 │                          │                           │
@@ -67,7 +67,7 @@ Each Telegram Forum Topic maps to an isolated session:
 Group (Forum mode)
 ├── Topic: "infra"           → Session A, workdir: ~/infra
 ├── Topic: "feedbot"         → Session B, workdir: ~/apps/feedbot
-├── Topic: "claude-channels" → Session C, workdir: ~/infra/claude-channels
+├── Topic: "openshannon" → Session C, workdir: ~/infra/openshannon
 └── Topic: "General"         → Session D, workdir: ~ (default)
 ```
 
@@ -115,7 +115,7 @@ type Session struct {
 
 ### Persistence
 
-Sessions stored in `~/.config/claude-channels/sessions.json`. Loaded at startup, saved on change and graceful shutdown.
+Sessions stored in `~/.config/openshannon/sessions.json`. Loaded at startup, saved on change and graceful shutdown.
 
 ### Concurrency
 
@@ -151,7 +151,7 @@ Sessions stored in `~/.config/claude-channels/sessions.json`. Loaded at startup,
 | Type | Processing |
 |---|---|
 | Text | Direct prompt |
-| Photo | Download to /tmp/claude-channels/<msgid>.jpg, pass path to Claude. Cleanup: delete after Claude processes, sweep files >1h old on startup. |
+| Photo | Download to /tmp/openshannon/<msgid>.jpg, pass path to Claude. Cleanup: delete after Claude processes, sweep files >1h old on startup. |
 | Document | Download to workdir/incoming/<filename>, notify Claude |
 | Voice/Audio | Download .ogg → Groq Whisper API → text prompt |
 | Sticker | P0: reply "Sticker received: {emoji}" as text prompt. P2: vision recognition |
@@ -268,11 +268,11 @@ protected_paths:
 
 ### Config File
 
-`~/.config/claude-channels/config.yaml` — all settings with `${ENV_VAR}` expansion for secrets.
+`~/.config/openshannon/config.yaml` — all settings with `${ENV_VAR}` expansion for secrets.
 
 ### Environment File
 
-`~/.config/claude-channels/env` — secrets only:
+`~/.config/openshannon/env` — secrets only:
 - `TELEGRAM_BOT_TOKEN`
 - `GROQ_API_KEY`
 - `NTFY_TOPIC`
@@ -303,17 +303,17 @@ claude:
 
 ```ini
 [Unit]
-Description=Claude Channels Telegram Daemon
+Description=OpenShannon Telegram Daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/home/scipio/go/bin/claude-channels --config /home/scipio/.config/claude-channels/config.yaml
+ExecStart=/home/scipio/go/bin/openshannon --config /home/scipio/.config/openshannon/config.yaml
 WorkingDirectory=/home/scipio
 Restart=on-failure
 RestartSec=10
-EnvironmentFile=/home/scipio/.config/claude-channels/env
+EnvironmentFile=/home/scipio/.config/openshannon/env
 Environment="HOME=/home/scipio"
 Environment=TMPDIR=/tmp
 Environment="PATH=/home/scipio/.local/bin:/home/scipio/.cargo/bin:/home/scipio/.local/share/bob/nvim-bin:/home/scipio/.local/share/mise/shims:/home/scipio/go/bin:/home/scipio/.bun/bin:/home/scipio/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin"
@@ -322,7 +322,7 @@ NoNewPrivileges=true
 ReadWritePaths=/home/scipio
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=claude-channels
+SyslogIdentifier=openshannon
 
 [Install]
 WantedBy=default.target
@@ -333,9 +333,9 @@ WantedBy=default.target
 ### Dotfiles Integration
 
 ```
-~/dotfiles/claude-channels.symlink/
-├── config.yaml              → ~/.config/claude-channels/config.yaml
-├── claude-channels.service  → ~/.config/systemd/user/claude-channels.service
+~/dotfiles/openshannon.symlink/
+├── config.yaml              → ~/.config/openshannon/config.yaml
+├── openshannon.service  → ~/.config/systemd/user/openshannon.service
 └── env.example              # template only, secrets not in dotfiles
 ```
 
@@ -420,8 +420,8 @@ Shell script that sends `/status` via Telegram API and verifies response. Run po
 ## Project Structure
 
 ```
-~/infra/claude-channels/
-├── cmd/claude-channels/main.go
+~/infra/openshannon/
+├── cmd/openshannon/main.go
 ├── internal/
 │   ├── telegram/
 │   │   ├── bot.go
@@ -435,7 +435,7 @@ Shell script that sends `/status` via Telegram API and verifies response. Run po
 │   ├── safety/filter.go
 │   └── config/config.go
 ├── config.example.yaml
-├── claude-channels.service
+├── openshannon.service
 ├── Makefile
 ├── go.mod
 └── go.sum
