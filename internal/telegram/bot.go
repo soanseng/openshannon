@@ -11,6 +11,7 @@ import (
 	tele "gopkg.in/telebot.v4"
 
 	"github.com/soanseng/openshannon/internal/claude"
+	codexexec "github.com/soanseng/openshannon/internal/codex"
 	"github.com/soanseng/openshannon/internal/config"
 	"github.com/soanseng/openshannon/internal/gemini"
 	"github.com/soanseng/openshannon/internal/notify"
@@ -24,6 +25,7 @@ type Bot struct {
 	cfg       *config.Config
 	sessions  *session.Manager
 	executor  claude.Executor
+	codex     claude.Executor
 	gemini    *gemini.Executor // optional, for image generation and Gemini models
 	filter    *safety.Filter
 	notifier  *notify.Notifier
@@ -32,6 +34,27 @@ type Bot struct {
 	stats     *Stats
 	ctx       context.Context
 	inflight  sync.Map // tracks in-flight prompt executions per key
+}
+
+type inflightPrompt struct {
+	mu       sync.RWMutex
+	executor claude.Executor
+}
+
+func (p *inflightPrompt) setExecutor(executor claude.Executor) {
+	p.mu.Lock()
+	p.executor = executor
+	p.mu.Unlock()
+}
+
+func (p *inflightPrompt) cancel(key string) error {
+	p.mu.RLock()
+	executor := p.executor
+	p.mu.RUnlock()
+	if executor == nil {
+		return nil
+	}
+	return executor.Cancel(key)
 }
 
 // Stats tracks aggregate bot usage counters.
@@ -98,6 +121,7 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 		cfg:       cfg,
 		sessions:  sessions,
 		executor:  executor,
+		codex:     codexexec.NewExecutor(cfg.Codex),
 		filter:    filter,
 		notifier:  notifier,
 		allowed:   allowed,
@@ -125,6 +149,7 @@ func NewBot(cfg *config.Config, sessions *session.Manager, executor claude.Execu
 		{Text: "cancel", Description: "Cancel running command"},
 		{Text: "shell", Description: "Run shell command directly"},
 		{Text: "long", Description: "Run with extended 30m timeout"},
+		{Text: "agent", Description: "Switch agent (claude/codex)"},
 		{Text: "gog", Description: "Google services (Gmail/Calendar/Drive)"},
 		{Text: "imagine", Description: "Generate image with Gemini"},
 		{Text: "model", Description: "Switch model (haiku/sonnet/opus/gemini)"},

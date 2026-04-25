@@ -33,6 +33,17 @@ claude:
   long_task_timeout: 30m
   max_budget_usd: 10.0
 
+# ── Codex CLI ────────────────────────────────────────
+codex:
+  binary: codex
+  default_workdir: "~/infra/openshannon"
+  sandbox: workspace-write
+  approval_policy: never
+  model: ""
+  flags: []
+  add_dirs:
+    - "~/infra/openshannon"
+
 # ── STT (Voice Note) ─────────────────────────────────
 stt:
   backend: groq                      # "groq" | "local"

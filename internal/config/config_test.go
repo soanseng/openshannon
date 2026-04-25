@@ -42,6 +42,17 @@ func TestLoadConfig_Defaults(t *testing.T) {
 		t.Errorf("Claude.MaxBudgetUSD = %f, want %f", cfg.Claude.MaxBudgetUSD, 10.0)
 	}
 
+	// Codex defaults
+	if cfg.Codex.Binary != "codex" {
+		t.Errorf("Codex.Binary = %q, want %q", cfg.Codex.Binary, "codex")
+	}
+	if cfg.Codex.Sandbox != "workspace-write" {
+		t.Errorf("Codex.Sandbox = %q, want %q", cfg.Codex.Sandbox, "workspace-write")
+	}
+	if cfg.Codex.ApprovalPolicy != "never" {
+		t.Errorf("Codex.ApprovalPolicy = %q, want %q", cfg.Codex.ApprovalPolicy, "never")
+	}
+
 	// STT defaults
 	if cfg.STT.Backend != "groq" {
 		t.Errorf("STT.Backend = %q, want %q", cfg.STT.Backend, "groq")
@@ -102,6 +113,14 @@ claude:
   default_workdir: "/tmp/work"
   session_idle_timeout: 15m
   max_budget_usd: 25.5
+codex:
+  binary: "/usr/local/bin/codex"
+  default_workdir: "/srv/openshannon"
+  model: "gpt-5.2"
+  sandbox: "danger-full-access"
+  approval_policy: "on-request"
+  flags: ["--search"]
+  add_dirs: ["/srv/openshannon", "/srv/shared"]
 stt:
   backend: "openai"
   model: "whisper-1"
@@ -176,6 +195,29 @@ storage:
 		if cfg.Claude.Flags[i] != f {
 			t.Errorf("Claude.Flags[%d] = %q, want %q (default)", i, cfg.Claude.Flags[i], f)
 		}
+	}
+
+	// Codex overrides
+	if cfg.Codex.Binary != "/usr/local/bin/codex" {
+		t.Errorf("Codex.Binary = %q, want %q", cfg.Codex.Binary, "/usr/local/bin/codex")
+	}
+	if cfg.Codex.DefaultWorkdir != "/srv/openshannon" {
+		t.Errorf("Codex.DefaultWorkdir = %q, want %q", cfg.Codex.DefaultWorkdir, "/srv/openshannon")
+	}
+	if cfg.Codex.Model != "gpt-5.2" {
+		t.Errorf("Codex.Model = %q, want %q", cfg.Codex.Model, "gpt-5.2")
+	}
+	if cfg.Codex.Sandbox != "danger-full-access" {
+		t.Errorf("Codex.Sandbox = %q, want %q", cfg.Codex.Sandbox, "danger-full-access")
+	}
+	if cfg.Codex.ApprovalPolicy != "on-request" {
+		t.Errorf("Codex.ApprovalPolicy = %q, want %q", cfg.Codex.ApprovalPolicy, "on-request")
+	}
+	if len(cfg.Codex.Flags) != 1 || cfg.Codex.Flags[0] != "--search" {
+		t.Errorf("Codex.Flags = %v, want [--search]", cfg.Codex.Flags)
+	}
+	if len(cfg.Codex.AddDirs) != 2 || cfg.Codex.AddDirs[0] != "/srv/openshannon" || cfg.Codex.AddDirs[1] != "/srv/shared" {
+		t.Errorf("Codex.AddDirs = %v, want [/srv/openshannon /srv/shared]", cfg.Codex.AddDirs)
 	}
 
 	// STT overrides

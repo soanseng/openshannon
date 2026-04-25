@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Telegram  TelegramConfig `yaml:"telegram"`
 	Claude    ClaudeConfig   `yaml:"claude"`
+	Codex     CodexConfig    `yaml:"codex"`
 	Gemini    GeminiConfig   `yaml:"gemini"`
 	STT       STTConfig      `yaml:"stt"`
 	Streaming StreamConfig   `yaml:"streaming"`
@@ -43,6 +44,17 @@ type ClaudeConfig struct {
 	DefaultTimeout     time.Duration `yaml:"default_timeout"`
 	LongTaskTimeout    time.Duration `yaml:"long_task_timeout"`
 	MaxBudgetUSD       float64       `yaml:"max_budget_usd"`
+}
+
+// CodexConfig holds Codex CLI invocation settings.
+type CodexConfig struct {
+	Binary         string   `yaml:"binary"`
+	DefaultWorkdir string   `yaml:"default_workdir"`
+	Model          string   `yaml:"model"`
+	Sandbox        string   `yaml:"sandbox"`
+	ApprovalPolicy string   `yaml:"approval_policy"`
+	Flags          []string `yaml:"flags"`
+	AddDirs        []string `yaml:"add_dirs"`
 }
 
 // STTConfig holds speech-to-text settings.
@@ -100,6 +112,12 @@ func defaults() *Config {
 			DefaultTimeout:     5 * time.Minute,
 			LongTaskTimeout:    30 * time.Minute,
 			MaxBudgetUSD:       10.0,
+		},
+		Codex: CodexConfig{
+			Binary:         "codex",
+			DefaultWorkdir: "~",
+			Sandbox:        "workspace-write",
+			ApprovalPolicy: "never",
 		},
 		STT: STTConfig{
 			Backend: "groq",
@@ -202,6 +220,29 @@ func mergeConfig(base, overlay *Config, raw map[string]interface{}) {
 	}
 	if overlay.Claude.MaxBudgetUSD != 0 {
 		base.Claude.MaxBudgetUSD = overlay.Claude.MaxBudgetUSD
+	}
+
+	// Codex
+	if overlay.Codex.Binary != "" {
+		base.Codex.Binary = overlay.Codex.Binary
+	}
+	if overlay.Codex.DefaultWorkdir != "" {
+		base.Codex.DefaultWorkdir = overlay.Codex.DefaultWorkdir
+	}
+	if overlay.Codex.Model != "" {
+		base.Codex.Model = overlay.Codex.Model
+	}
+	if overlay.Codex.Sandbox != "" {
+		base.Codex.Sandbox = overlay.Codex.Sandbox
+	}
+	if overlay.Codex.ApprovalPolicy != "" {
+		base.Codex.ApprovalPolicy = overlay.Codex.ApprovalPolicy
+	}
+	if len(overlay.Codex.Flags) > 0 {
+		base.Codex.Flags = overlay.Codex.Flags
+	}
+	if len(overlay.Codex.AddDirs) > 0 {
+		base.Codex.AddDirs = overlay.Codex.AddDirs
 	}
 
 	// STT

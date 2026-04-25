@@ -163,6 +163,21 @@ func (m *Manager) SetModel(key, model string) error {
 	return nil
 }
 
+// SetAgent changes the active agent for an existing session.
+func (m *Manager) SetAgent(key, agent string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	sess, exists := m.sessions[key]
+	if !exists {
+		return fmt.Errorf("session not found: %s", key)
+	}
+
+	sess.Agent = agent
+	sess.LastActiveAt = time.Now()
+	return nil
+}
+
 // List returns copies of all sessions. The returned slice is a snapshot;
 // mutating the returned sessions does not affect the manager's internal state.
 func (m *Manager) List() []*Session {

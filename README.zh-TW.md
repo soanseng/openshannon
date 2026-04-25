@@ -17,26 +17,30 @@
 </p>
 
 <p align="center">
-  一個 Go daemon，將 Telegram 串接到 <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>，讓你從手機遠端操控 Claude Code agent。隨時隨地用 Telegram 訊息指揮你的 coding assistant。
+  一個 Go daemon，將 Telegram 串接到 <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a> 或 Codex CLI，讓你從手機遠端操控 coding agent。隨時隨地用 Telegram 訊息指揮你的 coding assistant。
 </p>
 
-每個 Telegram Forum Topic 對應一個獨立的 Claude Code session，擁有各自的工作目錄和對話上下文。
+每個 Telegram Forum Topic 對應一個獨立的 agent session，擁有各自的工作目錄。
+Claude Code session 會用 `--resume` 保留對話上下文；Codex 目前會在該
+session workdir 和設定的 `add_dirs` 中逐次執行 prompt。
 
 ## 功能特色
 
 - **文字、語音、圖片、檔案** — 支援各種訊息類型
-- **串流回覆** — 透過 `editMessageText` 即時看到 Claude 的回應
+- **Agent 切換** — 每個 session 可用 `/agent claude` 或 `/agent codex`
+- **串流回覆** — 透過 `editMessageText` 看到 agent 的回應
 - **Session 管理** — 多個獨立 session 對應到 Forum Topics
 - **安全過濾** — 雙層防護（Go blocklist + Claude Code deny list）
 - **直接執行 Shell** — `/shell` 指令快速跑系統命令
 - **ntfy 通知** — daemon 事件的推播通知
 - **systemd 服務** — 自動重啟、journald 日誌
-- **單一執行檔** — 除了 `claude` CLI 外無其他依賴
+- **單一執行檔** — 除了選定的 agent CLI 外無其他依賴
 
 ## 前置需求
 
 - **Go 1.22+**
 - **Claude Code CLI** 已安裝並認證（`claude --version`）
+- （選用）**Codex CLI** 已安裝並認證（`codex --version`）
 - **Telegram Bot** — 透過 [@BotFather](https://t.me/BotFather) 建立
 - **你的 Telegram User ID** — 從 [@userinfobot](https://t.me/userinfobot) 取得
 - （選用）**Groq API key** 用於語音轉文字
@@ -58,7 +62,8 @@
 4. 將 bot 設為管理員（需要才能存取 topic）
 5. 為你的專案建立 topics：「infra」、「feedbot」等
 
-每個 topic 就是一個獨立的 Claude Code session。
+每個 topic 就是一個獨立的 agent session。Claude Code 會跨 prompt 保留
+對話上下文；Codex 會在該 topic workdir 中逐次執行 prompt。
 
 ### 3. 安裝
 
@@ -114,7 +119,7 @@ make logs     # 看即時 log
 
 ### 基本互動
 
-直接發送文字訊息給 bot — 它會直接變成 Claude Code 的 prompt：
+直接發送文字訊息給 bot — 它會直接變成目前選定 agent 的 prompt：
 
 ```
 你: 幫我找出程式碼中所有的 TODO 註解
@@ -129,13 +134,14 @@ Bot: 我在 5 個檔案中找到了 12 個 TODO 註解...
 | `/new [workdir]` | 建立新 session | `/new ~/infra` |
 | `/resume [id]` | 恢復閒置的 session | `/resume` |
 | `/sessions` | 列出所有 session | `/sessions` |
-| `/clear` | 清除 Claude 上下文，保留 workdir | `/clear` |
+| `/clear` | 清除 agent 上下文，保留 workdir | `/clear` |
 | `/kill [id]` | 完全刪除 session | `/kill` |
 | `/cd <path>` | 切換工作目錄 | `/cd ~/apps/feedbot` |
 | `/status` | Daemon 狀態與統計 | `/status` |
 | `/cancel` | 取消執行中的指令 | `/cancel` |
 | `/shell <cmd>` | 直接執行 shell 指令 | `/shell git status` |
 | `/long <prompt>` | 延長 timeout 至 30m | `/long 重構整個模組` |
+| `/agent [name]` | 切換 coding agent | `/agent codex` |
 | `/model [name]` | 切換模型 | `/model haiku` |
 | `/imagine <desc>` | 生成圖片（Gemini） | `/imagine 太空貓` |
 | `/gog <cmd>` | Google 服務 | `/gog gmail search newer_than:1d` |
@@ -164,6 +170,20 @@ Topic: "openshannon" → workdir: ~/infra/openshannon
 /model default     # 重設為預設
 ```
 
+### Agent 切換
+
+每個 topic/session 可以使用 Claude Code 或 Codex CLI：
+
+```
+/agent claude   # 使用 Claude Code
+/agent codex    # 使用 Codex CLI
+/agent default  # 重設為 Claude Code
+```
+
+Codex 會以 `codex exec --cd <workdir>` 執行。設定 `codex.default_workdir`
+和 `codex.add_dirs` 可以讓 Codex 使用完整 OpenShannon repo，例如
+`~/infra/openshannon`。
+
 ### 圖片生成
 
 使用 Claude 優化 prompt，再用 Gemini 3.1 Flash 生成圖片：
@@ -191,7 +211,7 @@ Topic: "openshannon" → workdir: ~/infra/openshannon
 
 雙層防護：
 
-**第一層 — Go daemon blocklist**（在 Claude 看到 prompt 之前）：
+**第一層 — Go daemon blocklist**（在選定 agent 看到 prompt 之前）：
 - 攔截危險指令：`rm -rf /`、`mkfs`、`dd if=`、`curl | sh`
 - 攔截危險 shell：`sudo`、`shutdown`、`git push --force`
 - 保護敏感路徑：`/etc/`、`/boot/`、`~/.ssh/authorized_keys`

@@ -17,26 +17,31 @@
 </p>
 
 <p align="center">
-  A Go daemon that bridges Telegram to <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>, enabling remote control of a Claude Code agent from your phone. Think of it as your personal coding assistant that you can message from anywhere.
+  A Go daemon that bridges Telegram to <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a> or Codex CLI, enabling remote control of a coding agent from your phone. Think of it as your personal coding assistant that you can message from anywhere.
 </p>
 
-Each Telegram Forum Topic maps to an isolated Claude Code session with its own working directory and conversation context.
+Each Telegram Forum Topic maps to an isolated agent session with its own working
+directory. Claude Code sessions also preserve conversation context with
+`--resume`; Codex runs each prompt in the session workdir and configured
+`add_dirs`.
 
 ## Features
 
-- **Text, voice, photos, files** — send any message type to Claude
-- **Streaming responses** — see Claude thinking in real-time via `editMessageText`
+- **Text, voice, photos, files** — send any message type to the selected agent
+- **Agent switching** — use `/agent claude` or `/agent codex` per session
+- **Streaming responses** — see agent responses via `editMessageText`
 - **Session management** — multiple isolated sessions mapped to Forum Topics
 - **Safety filter** — dual-layer protection (Go blocklist + Claude Code deny list)
 - **Direct shell** — `/shell` command for quick system commands
 - **ntfy notifications** — push alerts for daemon events
 - **systemd service** — auto-restart, journald logging
-- **Single binary** — no runtime dependencies beyond `claude` CLI
+- **Single binary** — no runtime dependencies beyond the selected agent CLI
 
 ## Prerequisites
 
 - **Go 1.22+**
 - **Claude Code CLI** installed and authenticated (`claude --version`)
+- (Optional) **Codex CLI** installed and authenticated (`codex --version`)
 - **Telegram Bot** — create one via [@BotFather](https://t.me/BotFather)
 - **Your Telegram User ID** — get it from [@userinfobot](https://t.me/userinfobot)
 - (Optional) **Groq API key** for voice note transcription
@@ -72,7 +77,8 @@ Each Telegram Forum Topic maps to an isolated Claude Code session with its own w
 4. Make the bot an admin (needed for topic access)
 5. Create topics for your projects: "infra", "feedbot", etc.
 
-Each topic becomes an isolated Claude Code session.
+Each topic becomes an isolated agent session. Claude Code preserves conversation
+context across prompts; Codex runs each prompt in the topic workdir.
 
 ### 3. Install
 
@@ -165,7 +171,7 @@ loginctl enable-linger $(whoami)
 
 ### Basic Interaction
 
-Just send a text message to the bot — it goes straight to Claude Code as a prompt:
+Just send a text message to the bot — it goes straight to the selected agent as a prompt:
 
 ```
 You: help me find all TODO comments in the codebase
@@ -180,13 +186,14 @@ Bot: I found 12 TODO comments across 5 files...
 | `/new [workdir]` | Create new session | `/new ~/infra` |
 | `/resume [id]` | Resume idle session | `/resume` |
 | `/sessions` | List all sessions | `/sessions` |
-| `/clear` | Reset Claude context, keep workdir | `/clear` |
+| `/clear` | Reset agent context, keep workdir | `/clear` |
 | `/kill [id]` | Kill session completely | `/kill` |
 | `/cd <path>` | Change working directory | `/cd ~/apps/feedbot` |
 | `/status` | Daemon status and stats | `/status` |
 | `/cancel` | Cancel running command | `/cancel` |
 | `/shell <cmd>` | Run shell command directly | `/shell git status` |
 | `/long <prompt>` | Extended 30m timeout | `/long refactor the entire module` |
+| `/agent [name]` | Switch coding agent | `/agent codex` |
 | `/model [name]` | Switch model | `/model haiku` |
 | `/imagine <desc>` | Generate image (Gemini) | `/imagine a cat in space` |
 | `/gog <cmd>` | Google services | `/gog gmail search newer_than:1d` |
@@ -207,13 +214,13 @@ First message in a new topic auto-creates a session. Use `/cd` to set the workdi
 ### Session Lifecycle
 
 ```
-/clear  → Reset Claude context, keep workdir and topic binding
+/clear  → Reset agent context, keep workdir and topic binding
 /kill   → Remove everything, topic returns to unbound state
 ```
 
 ### Direct Shell
 
-`/shell` bypasses Claude and runs commands directly:
+`/shell` bypasses the selected agent and runs commands directly:
 
 ```
 You: /shell docker ps
@@ -227,7 +234,7 @@ Shell commands are safety-filtered (no `sudo`, `rm -rf`, `git push --force`, etc
 
 Two layers of protection:
 
-**Layer 1 — Go daemon blocklist** (before Claude sees the prompt):
+**Layer 1 — Go daemon blocklist** (before the selected agent sees the prompt):
 - Blocks dangerous patterns: `rm -rf /`, `mkfs`, `dd if=`, `curl | sh`
 - Blocks dangerous shell commands: `sudo`, `shutdown`, `git push --force`
 - Protects sensitive paths: `/etc/`, `/boot/`, `~/.ssh/authorized_keys`
@@ -287,6 +294,20 @@ Each topic/session can use a different model:
 /model default     # Reset to config default
 ```
 
+## Agent Switching (/agent)
+
+Each topic/session can use Claude Code or Codex CLI:
+
+```
+/agent claude   # Use Claude Code
+/agent codex    # Use Codex CLI
+/agent default  # Reset to Claude Code
+```
+
+Codex runs with `codex exec --cd <workdir>`. Configure `codex.default_workdir`
+and `codex.add_dirs` to make the full OpenShannon repository available, for
+example `~/infra/openshannon`.
+
 ## Configuration Reference
 
 See [`config.example.yaml`](config.example.yaml) for all options with comments.
@@ -298,6 +319,8 @@ Key settings:
 | `claude.default_timeout` | `5m` | Max time per Claude invocation |
 | `claude.long_task_timeout` | `30m` | Timeout for `/long` commands |
 | `claude.max_budget_usd` | `10.0` | Cost cap per invocation |
+| `codex.default_workdir` | `~` | Workdir for new Codex sessions |
+| `codex.add_dirs` | `[]` | Extra directories Codex can access |
 | `safety.shell_timeout` | `30s` | Max time for `/shell` commands |
 | `streaming.min_interval` | `1s` | Min time between message edits |
 | `streaming.max_message_length` | `4096` | Telegram message length limit |
@@ -339,6 +362,7 @@ internal/
 ├── session/      Session lifecycle + persistence
 ├── safety/       Blocklist filter + path validation
 ├── claude/       Claude CLI executor + streaming
+├── codex/        Codex CLI executor
 ├── router/       Command parsing + session key mapping
 ├── telegram/     Bot, handler, formatter
 └── notify/       ntfy push notifications

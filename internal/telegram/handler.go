@@ -65,6 +65,8 @@ func (b *Bot) handleMessage(c tele.Context) error {
 		return b.handleShell(c, key, args)
 	case "long":
 		return b.handleLong(c, key, args)
+	case "agent":
+		return b.handleAgent(c, key, args)
 	case "model":
 		return b.handleModel(c, key, args)
 	case "imagine":
@@ -152,9 +154,10 @@ func (b *Bot) handleSessions(c tele.Context) error {
 	sb.WriteString(fmt.Sprintf("<b>Sessions</b> (%d)\n\n", len(sessions)))
 	for _, sess := range sessions {
 		sb.WriteString(fmt.Sprintf(
-			"<b>%s</b>\n  State: %s\n  Workdir: <code>%s</code>\n  Claude: <code>%s</code>\n  Last active: %s\n\n",
+			"<b>%s</b>\n  State: %s\n  Agent: %s\n  Workdir: <code>%s</code>\n  Claude: <code>%s</code>\n  Last active: %s\n\n",
 			EscapeHTML(sess.Key),
 			EscapeHTML(string(sess.State)),
+			EscapeHTML(currentAgent(sess.Agent)),
 			EscapeHTML(sess.Workdir),
 			EscapeHTML(sess.ClaudeSession),
 			sess.LastActiveAt.Format(time.DateTime),
@@ -252,9 +255,10 @@ func (b *Bot) handleStatus(c tele.Context) error {
 	sb.WriteString(fmt.Sprintf("<b>Sessions</b> (%d)\n", len(sessions)))
 	for _, sess := range sessions {
 		sb.WriteString(fmt.Sprintf(
-			"  <code>%s</code> [%s] %s (last: %s)\n",
+			"  <code>%s</code> [%s/%s] %s (last: %s)\n",
 			EscapeHTML(sess.Key),
 			EscapeHTML(string(sess.State)),
+			EscapeHTML(currentAgent(sess.Agent)),
 			EscapeHTML(sess.Workdir),
 			sess.LastActiveAt.Format("15:04:05"),
 		))
@@ -263,13 +267,28 @@ func (b *Bot) handleStatus(c tele.Context) error {
 	return c.Reply(sb.String(), tele.ModeHTML)
 }
 
-// handleCancel terminates the running Claude process for this session, if any.
+// handleCancel terminates the running agent process for this session, if any.
 func (b *Bot) handleCancel(c tele.Context, key string) error {
-	if err := b.executor.Cancel(key); err != nil {
+	if running, ok := b.inflight.Load(key); ok {
+		if prompt, ok := running.(*inflightPrompt); ok {
+			if err := prompt.cancel(key); err != nil {
+				slog.Error("cancel failed", "key", key, "err", err)
+				return c.Reply("Cancel failed.")
+			}
+			return c.Reply("Cancelled running agent process.")
+		}
+	}
+
+	sess := b.sessions.Get(key)
+	executor := b.executor
+	if sess != nil && currentAgent(sess.Agent) == "codex" {
+		executor = b.codex
+	}
+	if err := executor.Cancel(key); err != nil {
 		slog.Error("cancel failed", "key", key, "err", err)
 		return c.Reply("Cancel failed.")
 	}
-	return c.Reply("Cancelled running Claude process.")
+	return c.Reply("Cancelled running agent process.")
 }
 
 // handleShell executes a shell command in the session's workdir.
@@ -371,11 +390,12 @@ func (b *Bot) handleHelp(c tele.Context) error {
 /clear — Clear Claude session (keep workdir)
 /kill [key] — Remove session entirely
 /cd &lt;path&gt; — Change working directory
-/cancel — Cancel running Claude process
+/cancel — Cancel running agent process
 
 <b>Interaction</b>
 /shell &lt;command&gt; — Run shell command
 /long &lt;prompt&gt; — Prompt with long timeout (30m)
+/agent [claude|codex] — Switch coding agent
 /imagine &lt;description&gt; — Generate image (Gemini)
 /gog &lt;service&gt; &lt;cmd&gt; — Google services (Gmail/Cal/Drive)
 
@@ -385,9 +405,86 @@ func (b *Bot) handleHelp(c tele.Context) error {
 /help — This message
 
 <b>Prompting</b>
-Send any text without a / prefix to prompt Claude.`
+Send any text without a / prefix to prompt the selected agent.`
 
 	return c.Reply(help, tele.ModeHTML)
+}
+
+func currentAgent(agent string) string {
+	if agent == "codex" {
+		return "codex"
+	}
+	return "claude"
+}
+
+func (b *Bot) defaultWorkdirForAgent(agent string) string {
+	if agent == "codex" && b.cfg.Codex.DefaultWorkdir != "" {
+		return router.ExpandHome(b.cfg.Codex.DefaultWorkdir, homeDir())
+	}
+	return router.ExpandHome(b.cfg.Claude.DefaultWorkdir, homeDir())
+}
+
+// handleAgent switches the coding agent for the current session.
+func (b *Bot) handleAgent(c tele.Context, key, args string) error {
+	agent := strings.TrimSpace(strings.ToLower(args))
+
+	if agent == "" {
+		sess := b.sessions.GetOrCreate(key, b.defaultWorkdirForAgent("claude"))
+		current := currentAgent(sess.Agent)
+		return c.Reply(fmt.Sprintf(`Current agent: <b>%s</b>
+
+/agent claude — Use Claude Code
+/agent codex — Use Codex CLI
+/agent default — Reset to Claude`, current), tele.ModeHTML)
+	}
+
+	if agent == "default" || agent == "reset" {
+		agent = "claude"
+	}
+	if agent != "claude" && agent != "codex" {
+		return c.Reply(fmt.Sprintf("Unknown agent: %s\nUse: claude, codex, or default", agent))
+	}
+
+	defaultWorkdir := b.defaultWorkdirForAgent(agent)
+	if b.sessions.Get(key) == nil {
+		workdir, err := b.validateSessionWorkdir(defaultWorkdir)
+		if err != nil {
+			return c.Reply(err.Error())
+		}
+		defaultWorkdir = workdir
+	}
+	sess := b.sessions.GetOrCreate(key, defaultWorkdir)
+	if err := b.sessions.SetAgent(sess.Key, agent); err != nil {
+		slog.Error("failed to set agent", "key", key, "agent", agent, "err", err)
+		return c.Reply("Failed to set agent.")
+	}
+	_ = b.sessions.Save()
+	return c.Reply(fmt.Sprintf("Agent switched to <b>%s</b>.\nWorkdir: <code>%s</code>", agent, EscapeHTML(sess.Workdir)), tele.ModeHTML)
+}
+
+func (b *Bot) validateSessionWorkdir(workdir string) (string, error) {
+	workdir = filepath.Clean(router.ExpandHome(workdir, homeDir()))
+	if resolved, err := filepath.EvalSymlinks(workdir); err == nil {
+		workdir = resolved
+	}
+	info, err := os.Stat(workdir)
+	if err != nil {
+		return "", fmt.Errorf("Directory not found: %s", EscapeHTML(workdir))
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("Not a directory: %s", EscapeHTML(workdir))
+	}
+	if result := b.filter.CheckPath(workdir); !result.Allowed {
+		b.stats.incBlocked()
+		slog.Warn("agent default workdir blocked by safety filter",
+			"dir", workdir,
+			"reason", result.Reason,
+			"rule", result.Rule,
+		)
+		_ = b.notifier.SendCtx(b.ctx, "safety_block", fmt.Sprintf("agent default workdir blocked: %s -> %s", workdir, result.Rule))
+		return "", fmt.Errorf("Blocked: %s", result.Reason)
+	}
+	return workdir, nil
 }
 
 // validModels maps short names to Claude model IDs.
@@ -422,7 +519,8 @@ func (b *Bot) handleModel(c tele.Context, key, args string) error {
 		if current == "" {
 			current = "default (Claude from config)"
 		}
-		lines := fmt.Sprintf(`Current model: <b>%s</b>
+		lines := fmt.Sprintf(`Current agent: <b>%s</b>
+Current model: <b>%s</b>
 
 <b>Claude</b>
 /model haiku — Fast, cheap
@@ -433,7 +531,7 @@ func (b *Bot) handleModel(c tele.Context, key, args string) error {
 /model gemini — Gemini 2.5 Flash
 /model gemini-pro — Gemini 2.5 Pro
 
-/model default — Reset to config default`, current)
+/model default — Reset to config default`, currentAgent(sess.Agent), current)
 		return c.Reply(lines, tele.ModeHTML)
 	}
 
@@ -665,7 +763,8 @@ func (b *Bot) handlePrompt(c tele.Context, key, prompt string) error {
 // runPrompt is the shared implementation for handlePrompt and handleLong.
 func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duration) error {
 	// HIGH-3: Prevent concurrent execution for the same key.
-	if _, loaded := b.inflight.LoadOrStore(key, struct{}{}); loaded {
+	running := &inflightPrompt{}
+	if _, loaded := b.inflight.LoadOrStore(key, running); loaded {
 		return c.Reply("A command is already running. Use /cancel first.")
 	}
 	defer b.inflight.Delete(key)
@@ -745,14 +844,22 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 		lastEdit = now
 	}
 
-	// Route to Gemini or Claude depending on session model.
+	// Route to the selected agent. Gemini remains a model-level executor under
+	// the Claude agent path for compatibility with existing sessions.
 	var executor claude.Executor = b.executor
-	if IsGeminiModel(sess.Model) && b.gemini != nil {
+	sessionID := sess.ClaudeSession
+	opts := claude.RunOpts{Model: sess.Model}
+	agent := currentAgent(sess.Agent)
+	if agent == "codex" {
+		executor = b.codex
+		sessionID = ""
+		opts = claude.RunOpts{}
+	} else if IsGeminiModel(sess.Model) && b.gemini != nil {
 		executor = b.gemini
 	}
+	running.setExecutor(executor)
 
-	opts := claude.RunOpts{Model: sess.Model}
-	result, err := executor.RunWithStream(ctx, key, sess.ClaudeSession, workdir, prompt, opts, streamCb)
+	result, err := executor.RunWithStream(ctx, key, sessionID, workdir, prompt, opts, streamCb)
 
 	b.sessions.Touch(key)
 
@@ -760,13 +867,13 @@ func (b *Bot) runPrompt(c tele.Context, key, prompt string, timeout time.Duratio
 	if err != nil {
 		b.stats.incErrors()
 		b.react(msg, "❌")
-		slog.Error("claude execution failed", "key", key, "err", err)
-		_, _ = b.editMessage(placeholder, "Claude encountered an error. Check server logs for details.", "")
+		slog.Error("agent execution failed", "key", key, "agent", agent, "err", err)
+		_, _ = b.editMessage(placeholder, fmt.Sprintf("%s encountered an error. Check server logs for details.", strings.Title(agent)), "")
 		return nil // don't propagate; user already informed
 	}
 
 	// 8. Save session ID from result.
-	if result.SessionID != "" {
+	if agent == "claude" && result.SessionID != "" {
 		_ = b.sessions.SetClaudeSession(key, result.SessionID)
 	}
 

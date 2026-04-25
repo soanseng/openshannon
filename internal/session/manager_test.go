@@ -258,6 +258,25 @@ func TestManager_SetClaudeSession(t *testing.T) {
 	}
 }
 
+func TestManager_SetAgent(t *testing.T) {
+	dir := tempDir(t)
+	m := NewManager(dir)
+
+	_, err := m.Create("topic:1", "/tmp/w")
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if err := m.SetAgent("topic:1", "codex"); err != nil {
+		t.Fatalf("SetAgent failed: %v", err)
+	}
+
+	sess := m.Get("topic:1")
+	if sess.Agent != "codex" {
+		t.Errorf("Agent = %q, want codex", sess.Agent)
+	}
+}
+
 func TestManager_List(t *testing.T) {
 	dir := tempDir(t)
 	m := NewManager(dir)
