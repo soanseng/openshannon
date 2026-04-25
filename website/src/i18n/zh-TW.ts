@@ -6,23 +6,23 @@ const zhTW = {
   },
   hero: {
     title: 'OpenShannon',
-    tagline: '你的 Claude Code agent，一則 Telegram 訊息就能操控。',
+    tagline: '你的 Claude Code 或 Codex agent，一則 Telegram 訊息就能操控。',
     getStarted: '開始使用',
     viewGithub: 'GitHub',
   },
   features: {
     heading: '你需要的一切',
     chat: {
-      title: '與 Claude 對話',
+      title: '與 Claude 或 Codex 對話',
       desc: '從 Telegram 送出 prompt，即時取得串流回應。文字、語音、照片、檔案全部支援。',
     },
     sessions: {
       title: 'Session 隔離',
-      desc: '每個 Forum Topic 對應一個獨立的 Claude Code session，擁有自己的工作目錄和上下文。',
+      desc: '每個 Forum Topic 對應一個獨立的 agent session，擁有自己的工作目錄和上下文。',
     },
     multiModel: {
-      title: '多模型切換',
-      desc: '透過 /model 在 Haiku、Sonnet、Opus 或 Gemini 之間切換，為每個任務選擇最合適的模型。',
+      title: '多 Agent 切換',
+      desc: '透過 /agent 在 Claude 和 Codex 之間切換，再用 /model 為每個 session 選擇合適模型。',
     },
     imageGen: {
       title: '圖片生成',
@@ -34,7 +34,7 @@ const zhTW = {
     },
     safety: {
       title: '安全至上',
-      desc: '雙層防護：Go daemon 黑名單在 Claude 看到 prompt 前就先過濾，加上 Claude Code deny list。',
+      desc: '雙層防護：Go daemon 黑名單在 agent 看到 prompt 前就先過濾，加上 CLI sandbox 控制。',
     },
   },
   quickStart: {
@@ -48,7 +48,7 @@ const zhTW = {
   footer: {
     license: 'MIT License',
     disclaimer:
-      'OpenShannon 是一個獨立的開源專案。Claude Code 是 Anthropic 的產品。本專案與 Anthropic 無任何關聯、背書或贊助關係。',
+      'OpenShannon 是一個獨立的開源專案，與 Anthropic 或 OpenAI 無任何關聯、背書或贊助關係。',
   },
   sidebar: {
     heading: '文件目錄',
@@ -63,12 +63,12 @@ const zhTW = {
     gettingStarted: {
       title: '快速入門',
       intro:
-        'OpenShannon 是一個 Go daemon，用來橋接 Telegram 與 Claude Code。它讓你透過 Telegram 在手機上操控 Claude Code agent。每個 Forum Topic 對應一個獨立的 session，有自己的工作目錄和對話上下文。',
+        'OpenShannon 是一個 Go daemon，用來橋接 Telegram 與 Claude Code 或 Codex。它讓你透過 Telegram 在手機上操控 agent。每個 Forum Topic 對應一個獨立的 session，有自己的工作目錄和對話上下文。',
       prerequisites: '先決條件',
       prereqGo: 'Go 1.22+',
       prereqGoLink: '下載 Go',
-      prereqClaude: 'Claude Code CLI',
-      prereqClaudeDesc: '已安裝並完成驗證',
+      prereqClaude: 'Claude Code CLI 或 Codex CLI',
+      prereqClaudeDesc: '依照你要使用的 agent 安裝並完成驗證',
       prereqBot: 'Telegram Bot',
       prereqBotDesc: '透過以下方式建立',
       prereqUserId: '你的 Telegram User ID',
@@ -106,12 +106,13 @@ const zhTW = {
       installStep5: 'Config',
       installStep5Desc: '以正確權限寫入設定檔',
       installStep6: 'Workspace',
-      installStep6Desc: '建立 ~/OpenShannon/ 目錄，包含 CLAUDE.md 和 systemd 服務',
+      installStep6Desc: '建立 ~/OpenShannon/ 目錄，包含 CLAUDE.md、AGENTS.md 和 systemd 服務',
       filesCreated: '建立的檔案',
       fileConfig: 'bot 設定檔（權限 600）',
       fileEnv: '機密資料（權限 600）',
       fileWorkspace: '預設工作區，含 git',
       fileClaudeMd: '為 Telegram 互動設計的 Claude 指令',
+      fileAgentsMd: '指向 CLAUDE.md 的 Codex 指令',
       fileSystemd: 'systemd unit',
       testRun: '4. 測試執行',
       testRunDesc:
@@ -120,7 +121,7 @@ const zhTW = {
       deployLinger: '啟用 lingering，讓服務在未登入的狀態下也能持續運行：',
       firstMessage: '第一則訊息',
       firstMessageDesc:
-        'Bot 執行後，在 Telegram bot 聊天室（或 Forum 群組的 topic）中送出任何文字訊息。訊息會直接作為 prompt 送到 Claude Code：',
+        'Bot 執行後，在 Telegram bot 聊天室（或 Forum 群組的 topic）中送出任何文字訊息。訊息會直接作為 prompt 送到選定的 agent：',
     },
     commands: {
       title: '指令參考',
@@ -130,35 +131,38 @@ const zhTW = {
       thCommand: '指令',
       thDescription: '說明',
       thExample: '範例',
-      newDesc: '建立新的 Claude Code session',
+      newDesc: '建立新的 agent session',
       resumeDesc: '恢復閒置的 session',
       sessionsDesc: '列出所有執行中的 session',
-      clearDesc: '重置 Claude 上下文，保留工作目錄',
+      clearDesc: '重置 agent 上下文，保留工作目錄',
       killDesc: '完全終止 session',
       cdDesc: '變更 session 工作目錄',
       statusDesc: '顯示 daemon 狀態與統計資訊',
       cancelDesc: '取消目前正在執行的指令',
-      shellDesc: '直接執行 shell 指令（繞過 Claude）',
+      shellDesc: '直接執行 shell 指令（繞過 agent）',
       longDesc: '以延長的 30 分鐘逾時執行',
       modelDesc: '切換此 session 的模型',
+      agentDesc: '切換此 session 的 agent',
       imagineDesc: '透過 Gemini 生成圖片',
       gogDesc: '存取 Google 服務（Gmail、Calendar 等）',
       helpDesc: '顯示所有可用指令',
       sessionManagement: 'Session 管理',
       forumTopicsSessions: 'Forum Topics = Sessions',
       forumTopicsDesc:
-        '在啟用 Forum 的群組中，每個 topic 都是一個獨立的 session，擁有自己的 Claude Code 程序和工作目錄：',
+        '在啟用 Forum 的群組中，每個 topic 都是一個獨立的 session，擁有自己的 agent 程序和工作目錄：',
       firstMessageAutoCreates:
         '在新 topic 中的第一則訊息會自動建立 session。使用 /cd 設定工作目錄。',
       sessionLifecycle: 'Session 生命週期',
-      clearExplain: '重置 Claude 上下文，但保留工作目錄和 topic 綁定',
+      clearExplain: '重置 agent 上下文，但保留工作目錄和 topic 綁定',
       killExplain: '移除所有內容；topic 回到未綁定狀態',
       directShell: '直接 Shell',
-      directShellDesc: '/shell 繞過 Claude，直接在系統上執行指令：',
+      directShellDesc: '/shell 繞過選定的 agent，直接在系統上執行指令：',
       shellSafety:
         'Shell 指令會經過安全過濾（禁止 sudo、rm -rf、git push --force 等），並有 30 秒逾時限制。',
       modelSwitching: '模型切換',
       modelSwitchingDesc: '每個 topic/session 可以使用不同的模型：',
+      agentSwitching: 'Agent 切換',
+      agentSwitchingDesc: '每個 topic/session 可以使用 Claude、Codex，或重設回 Claude：',
       extendedTimeout: '延長逾時',
       extendedTimeoutDesc:
         '對於需要超過預設 5 分鐘逾時的任務，使用 /long。它會提供 30 分鐘的執行時間：',
@@ -177,6 +181,8 @@ const zhTW = {
       thDefault: '預設值',
       thDescription: '說明',
       descDefaultTimeout: '每次 Claude 呼叫的最大時間',
+      descCodexDefaultWorkdir: 'Codex session 的預設工作目錄',
+      descCodexSandbox: 'Codex sandbox 模式',
       descLongTimeout: '/long 指令的逾時時間',
       descBudget: '每次呼叫的費用上限',
       descShellTimeout: '/shell 指令的最大時間',
@@ -188,7 +194,7 @@ const zhTW = {
       systemdLinger: '啟用 lingering，讓服務在未登入的狀態下也能運行：',
       defaultWorkspace: '預設工作區',
       defaultWorkspaceDesc:
-        '安裝精靈會建立 ~/OpenShannon/ 作為預設工作區。此目錄包含一個 CLAUDE.md 檔案，內有專為 Telegram 互動設計的指令。未指定工作目錄的新 session 會使用此路徑。',
+        '安裝精靈會建立 ~/OpenShannon/ 作為預設工作區。此目錄以 CLAUDE.md 作為 source of truth，AGENTS.md 會指示 Codex 讀取它。未指定工作目錄的新 session 會使用此路徑。',
       ntfyNotifications: 'ntfy 通知',
       ntfyDescBefore: 'OpenShannon 可以透過',
       ntfyDescAfter:

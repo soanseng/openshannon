@@ -1,14 +1,7 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import en from './en'
 import zhTW from './zh-TW'
-
-type Locale = 'en' | 'zh-TW'
-
-interface LanguageContextType {
-  locale: Locale
-  setLocale: (locale: Locale) => void
-  t: (key: string) => string
-}
+import { LanguageContext, type Locale } from './languageContext'
 
 const dictionaries: Record<Locale, Record<string, unknown>> = {
   en: en as unknown as Record<string, unknown>,
@@ -26,8 +19,6 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string {
   }
   return typeof current === 'string' ? current : path
 }
-
-const LanguageContext = createContext<LanguageContextType | null>(null)
 
 const STORAGE_KEY = 'openshannon-locale'
 
@@ -55,12 +46,4 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       {children}
     </LanguageContext.Provider>
   )
-}
-
-export function useLanguage() {
-  const context = useContext(LanguageContext)
-  if (!context) {
-    throw new Error('useLanguage must be used within a LanguageProvider')
-  }
-  return context
 }

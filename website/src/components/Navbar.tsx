@@ -6,16 +6,16 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 bg-cream/90 backdrop-blur-sm border-b border-card-border">
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 no-underline">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <Link to="/" className="flex items-center gap-2 sm:gap-3 no-underline min-w-0">
           <img
             src="/shannon.jpg"
             alt="OpenShannon"
             className="w-9 h-9 rounded-lg"
           />
-          <span className="font-bold text-lg text-navy">OpenShannon</span>
+          <span className="hidden sm:inline font-bold text-lg text-navy">OpenShannon</span>
         </Link>
-        <div className="flex items-center gap-6 text-sm font-medium">
+        <div className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm font-medium shrink-0">
           <a href="/#features" className="text-navy-light hover:text-accent transition-colors">
             {t('nav.features')}
           </a>

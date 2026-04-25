@@ -76,6 +76,11 @@ export default function Commands() {
               <td><code>/model haiku</code></td>
             </tr>
             <tr>
+              <td><code>/agent [name]</code></td>
+              <td>{t('docs.commands.agentDesc')}</td>
+              <td><code>/agent codex</code></td>
+            </tr>
+            <tr>
               <td><code>/imagine &lt;desc&gt;</code></td>
               <td>{t('docs.commands.imagineDesc')}</td>
               <td><code>/imagine a cat in space</code></td>
@@ -123,6 +128,12 @@ Bot: CONTAINER ID  IMAGE         STATUS
 /model gemini      # Gemini 2.5 Flash
 /model gemini-pro  # Gemini 2.5 Pro
 /model default     # Reset to config default`}</CodeBlock>
+
+      <h2>{t('docs.commands.agentSwitching')}</h2>
+      <p>{t('docs.commands.agentSwitchingDesc')}</p>
+<CodeBlock language="text">{`/agent claude   # Use Claude Code for this session
+/agent codex    # Use Codex CLI for this session
+/agent default  # Reset to Claude Code`}</CodeBlock>
 
       <h2>{t('docs.commands.extendedTimeout')}</h2>
       <p>{t('docs.commands.extendedTimeoutDesc')}</p>

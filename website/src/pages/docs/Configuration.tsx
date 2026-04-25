@@ -21,6 +21,14 @@ claude:
   long_task_timeout: 30m       # Timeout for /long commands
   max_budget_usd: 10.0         # Cost cap per invocation
 
+codex:
+  binary: codex
+  default_workdir: "~/infra/openshannon"
+  sandbox: workspace-write
+  approval_policy: never
+  add_dirs:
+    - "~/infra/openshannon"
+
 safety:
   shell_timeout: 30s           # Max time for /shell commands
 
@@ -77,6 +85,16 @@ NTFY_TOKEN=tk_xxxxxxxxxxxxx`}</CodeBlock>
               <td><code>claude.max_budget_usd</code></td>
               <td><code>10.0</code></td>
               <td>{t('docs.configuration.descBudget')}</td>
+            </tr>
+            <tr>
+              <td><code>codex.default_workdir</code></td>
+              <td><code>~/infra/openshannon</code></td>
+              <td>{t('docs.configuration.descCodexDefaultWorkdir')}</td>
+            </tr>
+            <tr>
+              <td><code>codex.sandbox</code></td>
+              <td><code>workspace-write</code></td>
+              <td>{t('docs.configuration.descCodexSandbox')}</td>
             </tr>
             <tr>
               <td><code>safety.shell_timeout</code></td>

@@ -12,7 +12,7 @@ export default function GettingStarted() {
       <h2>{t('docs.gettingStarted.prerequisites')}</h2>
       <ul>
         <li><strong>{t('docs.gettingStarted.prereqGo')}</strong> &mdash; <a href="https://go.dev/dl/" target="_blank" rel="noopener noreferrer">{t('docs.gettingStarted.prereqGoLink')}</a></li>
-        <li><strong>{t('docs.gettingStarted.prereqClaude')}</strong> &mdash; {t('docs.gettingStarted.prereqClaudeDesc')} (<code>claude --version</code>)</li>
+        <li><strong>{t('docs.gettingStarted.prereqClaude')}</strong> &mdash; {t('docs.gettingStarted.prereqClaudeDesc')} (<code>claude --version</code> / <code>codex --version</code>)</li>
         <li><strong>{t('docs.gettingStarted.prereqBot')}</strong> &mdash; {t('docs.gettingStarted.prereqBotDesc')} <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a></li>
         <li><strong>{t('docs.gettingStarted.prereqUserId')}</strong> &mdash; {t('docs.gettingStarted.prereqUserIdDesc')} <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a></li>
         <li>{t('docs.gettingStarted.optional')} <strong>{t('docs.gettingStarted.prereqGroq')}</strong> {t('docs.gettingStarted.prereqGroqDesc')}</li>
@@ -64,6 +64,7 @@ make setup`}</CodeBlock>
         <li><code>~/.config/openshannon/env</code> &mdash; {t('docs.gettingStarted.fileEnv')}</li>
         <li><code>~/OpenShannon/</code> &mdash; {t('docs.gettingStarted.fileWorkspace')}</li>
         <li><code>~/OpenShannon/CLAUDE.md</code> &mdash; {t('docs.gettingStarted.fileClaudeMd')}</li>
+        <li><code>~/OpenShannon/AGENTS.md</code> &mdash; {t('docs.gettingStarted.fileAgentsMd')}</li>
         <li><code>~/.config/systemd/user/openshannon.service</code> &mdash; {t('docs.gettingStarted.fileSystemd')}</li>
       </ul>
 

@@ -6,23 +6,23 @@ const en = {
   },
   hero: {
     title: 'OpenShannon',
-    tagline: 'Your Claude Code agent, one Telegram message away.',
+    tagline: 'Your Claude Code or Codex agent, one Telegram message away.',
     getStarted: 'Get Started',
     viewGithub: 'GitHub',
   },
   features: {
     heading: 'Everything you need',
     chat: {
-      title: 'Chat with Claude',
+      title: 'Chat with Claude or Codex',
       desc: 'Send prompts from Telegram, get streaming responses. Text, voice, photos, and files — all supported.',
     },
     sessions: {
       title: 'Session Isolation',
-      desc: 'Each Forum Topic maps to a separate Claude Code session with its own working directory and context.',
+      desc: 'Each Forum Topic maps to a separate agent session with its own working directory and context.',
     },
     multiModel: {
-      title: 'Multi-Model',
-      desc: 'Switch between Haiku, Sonnet, Opus, or Gemini per session with /model. Use the right model for the task.',
+      title: 'Multi-Agent',
+      desc: 'Switch between Claude and Codex with /agent, then pick the right model per session with /model.',
     },
     imageGen: {
       title: 'Image Generation',
@@ -34,7 +34,7 @@ const en = {
     },
     safety: {
       title: 'Safety First',
-      desc: 'Dual-layer protection: Go daemon blocklist filters before Claude sees the prompt, plus Claude Code deny list.',
+      desc: 'Dual-layer protection: Go daemon blocklist filters before an agent sees the prompt, plus CLI sandbox controls.',
     },
   },
   quickStart: {
@@ -48,7 +48,7 @@ const en = {
   footer: {
     license: 'MIT License',
     disclaimer:
-      'OpenShannon is an independent open-source project. Claude Code is a product of Anthropic. This project is not affiliated with, endorsed by, or sponsored by Anthropic.',
+      'OpenShannon is an independent open-source project and is not affiliated with, endorsed by, or sponsored by Anthropic or OpenAI.',
   },
   sidebar: {
     heading: 'Documentation',
@@ -63,12 +63,12 @@ const en = {
     gettingStarted: {
       title: 'Getting Started',
       intro:
-        'OpenShannon is a Go daemon that bridges Telegram to Claude Code. It lets you control a Claude Code agent from your phone via Telegram. Each Forum Topic maps to an isolated session with its own working directory and conversation context.',
+        'OpenShannon is a Go daemon that bridges Telegram to Claude Code or Codex. It lets you control an agent from your phone via Telegram. Each Forum Topic maps to an isolated session with its own working directory and conversation context.',
       prerequisites: 'Prerequisites',
       prereqGo: 'Go 1.22+',
       prereqGoLink: 'Download Go',
-      prereqClaude: 'Claude Code CLI',
-      prereqClaudeDesc: 'installed and authenticated',
+      prereqClaude: 'Claude Code CLI or Codex CLI',
+      prereqClaudeDesc: 'installed and authenticated for the agent you want to use',
       prereqBot: 'Telegram Bot',
       prereqBotDesc: 'create one via',
       prereqUserId: 'Your Telegram User ID',
@@ -106,12 +106,13 @@ const en = {
       installStep5: 'Config',
       installStep5Desc: 'writes config files with correct permissions',
       installStep6: 'Workspace',
-      installStep6Desc: 'creates ~/OpenShannon/ with CLAUDE.md and systemd service',
+      installStep6Desc: 'creates ~/OpenShannon/ with CLAUDE.md, AGENTS.md, and systemd service',
       filesCreated: 'Files Created',
       fileConfig: 'bot config (mode 600)',
       fileEnv: 'secrets (mode 600)',
       fileWorkspace: 'default workspace with git',
       fileClaudeMd: 'Claude instructions for Telegram use',
+      fileAgentsMd: 'Codex instructions that point back to CLAUDE.md',
       fileSystemd: 'systemd unit',
       testRun: '4. Test Run',
       testRunDesc:
@@ -120,7 +121,7 @@ const en = {
       deployLinger: 'Enable lingering so the service keeps running without a login session:',
       firstMessage: 'First Message',
       firstMessageDesc:
-        'Once the bot is running, send any text message to your Telegram bot (or to a topic in your Forum group). The message goes straight to Claude Code as a prompt:',
+        'Once the bot is running, send any text message to your Telegram bot (or to a topic in your Forum group). The message goes straight to the selected agent as a prompt:',
     },
     commands: {
       title: 'Command Reference',
@@ -130,35 +131,38 @@ const en = {
       thCommand: 'Command',
       thDescription: 'Description',
       thExample: 'Example',
-      newDesc: 'Create a new Claude Code session',
+      newDesc: 'Create a new agent session',
       resumeDesc: 'Resume an idle session',
       sessionsDesc: 'List all active sessions',
-      clearDesc: 'Reset Claude context, keep workdir',
+      clearDesc: 'Reset agent context, keep workdir',
       killDesc: 'Kill a session completely',
       cdDesc: 'Change the session working directory',
       statusDesc: 'Show daemon status and stats',
       cancelDesc: 'Cancel the currently running command',
-      shellDesc: 'Run a shell command directly (bypasses Claude)',
+      shellDesc: 'Run a shell command directly (bypasses the agent)',
       longDesc: 'Run with extended 30-minute timeout',
       modelDesc: 'Switch the model for this session',
+      agentDesc: 'Switch the session agent',
       imagineDesc: 'Generate an image via Gemini',
       gogDesc: 'Access Google services (Gmail, Calendar, etc.)',
       helpDesc: 'Show all available commands',
       sessionManagement: 'Session Management',
       forumTopicsSessions: 'Forum Topics = Sessions',
       forumTopicsDesc:
-        'In a Forum-enabled group, each topic is an isolated session with its own Claude Code process and working directory:',
+        'In a Forum-enabled group, each topic is an isolated session with its own agent process and working directory:',
       firstMessageAutoCreates:
         'The first message in a new topic auto-creates a session. Use /cd to set the working directory.',
       sessionLifecycle: 'Session Lifecycle',
-      clearExplain: 'Resets Claude context but keeps the workdir and topic binding',
+      clearExplain: 'Resets agent context but keeps the workdir and topic binding',
       killExplain: 'Removes everything; the topic returns to an unbound state',
       directShell: 'Direct Shell',
-      directShellDesc: '/shell bypasses Claude and runs commands directly on the system:',
+      directShellDesc: '/shell bypasses the selected agent and runs commands directly on the system:',
       shellSafety:
         'Shell commands are safety-filtered (no sudo, rm -rf, git push --force, etc.) and have a 30-second timeout.',
       modelSwitching: 'Model Switching',
       modelSwitchingDesc: 'Each topic/session can use a different model:',
+      agentSwitching: 'Agent Switching',
+      agentSwitchingDesc: 'Each topic/session can use Claude, Codex, or reset back to Claude:',
       extendedTimeout: 'Extended Timeout',
       extendedTimeoutDesc:
         'Use /long for tasks that need more than the default 5-minute timeout. It gives the command a 30-minute window:',
@@ -177,6 +181,8 @@ const en = {
       thDefault: 'Default',
       thDescription: 'Description',
       descDefaultTimeout: 'Max time per Claude invocation',
+      descCodexDefaultWorkdir: 'Default workdir for Codex sessions',
+      descCodexSandbox: 'Codex sandbox mode',
       descLongTimeout: 'Timeout for /long commands',
       descBudget: 'Cost cap per invocation',
       descShellTimeout: 'Max time for /shell commands',
@@ -188,7 +194,7 @@ const en = {
       systemdLinger: 'Enable lingering so the service runs even when you\'re not logged in:',
       defaultWorkspace: 'Default Workspace',
       defaultWorkspaceDesc:
-        'The install wizard creates ~/OpenShannon/ as the default workspace. This directory contains a CLAUDE.md file with instructions tailored for Telegram interaction. New sessions that don\'t specify a workdir will use this path.',
+        'The install wizard creates ~/OpenShannon/ as the default workspace. This directory contains CLAUDE.md as the source of truth, and AGENTS.md points Codex to it. New sessions that don\'t specify a workdir will use this path.',
       ntfyNotifications: 'ntfy Notifications',
       ntfyDescBefore: 'OpenShannon can send push notifications via',
       ntfyDescAfter:
